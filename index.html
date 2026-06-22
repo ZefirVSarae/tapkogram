@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tapkogram</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-main: #1a0f1a;
+            --bg-surface: #2d1b2d;
+            --bg-surface-variant: #3d263d;
+            --color-primary: #ffb0ff;
+            --color-on-primary: #571257;
+            --color-primary-container: #722c72;
+            --color-on-primary-container: #ffd6ff;
+            --text-main: #f1e0f1;
+            --text-variant: #caaeca;
+            --outline: #523a52;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: -webkit-fill-available;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 480px;
+            height: 100%;
+            max-height: 850px;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-main);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        header {
+            height: 64px;
+            background-color: var(--bg-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--bg-surface-variant);
+            justify-content: space-between;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        #currentNickname {
+            font-size: 14px;
+            color: var(--color-primary);
+            cursor: pointer;
+            background: var(--bg-surface-variant);
+            padding: 6px 12px;
+            border-radius: 16px;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 10px 16px;
+            border-radius: 24px;
+            font-size: 16px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message .author {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 2px;
+            color: var(--color-primary);
+        }
+
+        .message.incoming {
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.incoming .author {
+            color: var(--color-primary);
+        }
+
+        .message.outgoing {
+            background-color: var(--color-primary-container);
+            color: var(--color-on-primary-container);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.outgoing .author {
+            color: var(--color-primary);
+        }
+
+        .message-form {
+            padding: 16px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background-color: var(--bg-main);
+        }
+
+        .input-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input {
+            width: 100%;
+            height: 56px;
+            padding: 0 24px;
+            border: 2px solid var(--outline);
+            border-radius: 28px;
+            font-size: 16px;
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--color-primary);
+        }
+
+        button {
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            border: none;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        button:active {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+
+        .material-symbols-outlined {
+            font-size: 24px;
+        }
+
+        /* Модалка выбора ника */
+        #usernameModal {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 32px;
+            z-index: 10;
+        }
+
+        #usernameModal h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+            font-weight: 400;
+        }
+
+        #usernameModal input {
+            margin-bottom: 16px;
+        }
+
+        #usernameModal button {
+            width: auto;
+            padding: 0 32px;
+            border-radius: 28px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (min-width: 481px) {
+            #app {
+                border-radius: 28px;
+                overflow: hidden;
+                border: 1px solid var(--bg-surface-variant);
+            }
+            #usernameModal {
+                border-radius: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="usernameModal">
+        <h2>Введите ваш никнейм</h2>
+        <input type="text" id="nicknameInput" placeholder="Ваш ник" autocomplete="off" maxlength="20">
+        <button id="saveNicknameBtn">Войти</button>
+    </div>
+
+    <header>
+        <h1>Tapkogram</h1>
+        <div id="currentNickname" title="Изменить ник">Выбрать ник</div>
+    </header>
+
+    <div id="messages"></div>
+
+    <form class="message-form" id="messageForm">
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Сообщение" autocomplete="off" required>
+        </div>
+        <button type="submit">
+            <span class="material-symbols-outlined">send</span>
+        </button>
+    </form>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyCgrN0wvT9hMaKjm33jjCVMbxNcLPEvYOU",
+        authDomain: "prmesenger.firebaseapp.com",
+        databaseURL: "https://prmesenger-default-rtdb.firebaseio.com",
+        projectId: "prmesenger",
+        storageBucket: "prmesenger.firebasestorage.app",
+        messagingSenderId: "278915268758",
+        appId: "1:278915268758:web:8895895a983bb06a9b02b7",
+        measurementId: "G-H58JHCGP91"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const messagesRef = db.ref('messages');
+
+    const userId = Math.random().toString(36).substring(2, 9);
+    let myNickname = localStorage.getItem('tapkogram_nick') || '';
+
+    const messagesContainer = document.getElementById('messages');
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const usernameModal = document.getElementById('usernameModal');
+    const nicknameInput = document.getElementById('nicknameInput');
+    const saveNicknameBtn = document.getElementById('saveNicknameBtn');
+    const currentNicknameDisplay = document.getElementById('currentNickname');
+
+    if (myNickname) {
+        usernameModal.classList.add('hidden');
+        currentNicknameDisplay.textContent = myNickname;
+    }
+
+    saveNicknameBtn.addEventListener('click', () => {
+        const value = nicknameInput.value.trim();
+        if (value) {
+            myNickname = value;
+            localStorage.setItem('tapkogram_nick', myNickname);
+            currentNicknameDisplay.textContent = myNickname;
+            usernameModal.classList.add('hidden');
+        }
+    });
+
+    currentNicknameDisplay.addEventListener('click', () => {
+        nicknameInput.value = myNickname;
+        usernameModal.classList.remove('hidden');
+    });
+
+    messageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (text && myNickname) {
+            messagesRef.push({
+                userId: userId,
+                nickname: myNickname,
+                text: text,
+                timestamp: Date.now()
+            });
+            messageInput.value = '';
+        }
+    });
+
+    messagesRef.on('child_added', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        
+        if (data.userId === userId) {
+            messageElement.classList.add('outgoing');
+        } else {
+            messageElement.classList.add('incoming');
+        }
+
+        const authorSpan = document.createElement('span');
+        authorSpan.classList.add('author');
+        authorSpan.textContent = data.nickname || 'Аноним';
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = data.text;
+
+        messageElement.appendChild(authorSpan);
+        messageElement.appendChild(textSpan);
+        
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
+</script>
+
+</body>
+  </html>
+  
