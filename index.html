@@ -283,7 +283,7 @@
             align-items: center;
         }
 
-        #replyPreview {
+        #replyPreview, #editPreview {
             border-left: 4px solid var(--color-primary);
             margin-bottom: 4px;
         }
@@ -375,6 +375,12 @@
         .hidden {
             display: none !important;
         }
+        
+        .edited-mark {
+            font-size: 11px;
+            opacity: 0.5;
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -406,6 +412,19 @@
             </div>
         </div>
         <button type="button" id="removeReplyBtn" class="preview-remove">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+
+    <div id="editPreview" class="preview-container hidden">
+        <div class="preview-info">
+            <span class="material-symbols-outlined">edit</span>
+            <div>
+                <strong style="font-size: 12px; color: var(--color-primary); display: block;">Редактирование</strong>
+                <span id="editPreviewText" style="font-size: 13px; opacity: 0.8;">Текст</span>
+            </div>
+        </div>
+        <button type="button" id="removeEditBtn" class="preview-remove">
             <span class="material-symbols-outlined">close</span>
         </button>
     </div>
@@ -449,6 +468,7 @@
     
     let myNickname = localStorage.getItem('tapkogram_nick') || '';
     let currentReplyData = null;
+    let currentEditKey = null;
     let typingTimeout = null;
 
     const messagesContainer = document.getElementById('messages');
@@ -463,6 +483,11 @@
     const replyPreviewAuthor = document.getElementById('replyPreviewAuthor');
     const replyPreviewText = document.getElementById('replyPreviewText');
     const removeReplyBtn = document.getElementById('removeReplyBtn');
+    
+    const editPreview = document.getElementById('editPreview');
+    const editPreviewText = document.getElementById('editPreviewText');
+    const removeEditBtn = document.getElementById('removeEditBtn');
+
     const userCountDisplay = document.getElementById('userCount');
     const typingStatusDisplay = document.getElementById('typingStatus');
 
@@ -493,6 +518,12 @@
         replyPreview.classList.add('hidden');
     });
 
+    removeEditBtn.addEventListener('click', () => {
+        currentEditKey = null;
+        messageInput.value = '';
+        editPreview.classList.add('hidden');
+    });
+
     document.addEventListener('click', () => {
         document.querySelectorAll('.message-actions').forEach(panel => panel.remove());
     });
@@ -518,23 +549,32 @@
         clearTimeout(typingTimeout);
         typingRef.child(userId).remove();
 
-        const messageData = {
-            userId: userId,
-            nickname: myNickname,
-            timestamp: Date.now(),
-            read: false,
-            text: text
-        };
+        if (currentEditKey) {
+            messagesRef.child(currentEditKey).update({
+                text: text,
+                edited: true
+            });
+            currentEditKey = null;
+            editPreview.classList.add('hidden');
+        } else {
+            const messageData = {
+                userId: userId,
+                nickname: myNickname,
+                timestamp: Date.now(),
+                read: false,
+                text: text
+            };
 
-        if (currentReplyData) {
-            messageData.replyTo = currentReplyData;
+            if (currentReplyData) {
+                messageData.replyTo = currentReplyData;
+            }
+
+            messagesRef.push(messageData);
+            currentReplyData = null;
+            replyPreview.classList.add('hidden');
         }
 
-        messagesRef.push(messageData);
-
         messageInput.value = '';
-        currentReplyData = null;
-        replyPreview.classList.add('hidden');
     });
 
     usersRef.on('value', (snapshot) => {
@@ -568,6 +608,7 @@
 
         const container = document.createElement('div');
         container.classList.add('message-container');
+        container.setAttribute('data-key', msgKey);
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
@@ -595,14 +636,20 @@
             messageElement.appendChild(replyDiv);
         }
 
-        if (data.text) {
-            const textSpan = document.createElement('span');
-            textSpan.textContent = data.text;
-            messageElement.appendChild(textSpan);
-        }
+        const textSpan = document.createElement('span');
+        textSpan.classList.add('msg-text-content');
+        textSpan.textContent = data.text || '';
+        messageElement.appendChild(textSpan);
 
         const footer = document.createElement('div');
         footer.classList.add('message-footer');
+
+        if (data.edited) {
+            const editedSpan = document.createElement('span');
+            editedSpan.classList.add('edited-mark');
+            editedSpan.textContent = 'изм.';
+            footer.appendChild(editedSpan);
+        }
 
         const timeSpan = document.createElement('span');
         timeSpan.classList.add('message-time');
@@ -648,11 +695,46 @@
                 replyPreviewAuthor.textContent = currentReplyData.nickname;
                 replyPreviewText.textContent = currentReplyData.text;
                 replyPreview.classList.remove('hidden');
+                currentEditKey = null;
+                editPreview.classList.add('hidden');
                 panel.remove();
                 messageInput.focus();
             });
-
             panel.appendChild(replyAction);
+
+            if (data.userId === userId) {
+                const editAction = document.createElement('button');
+                editAction.type = 'button';
+                editAction.classList.add('action-item');
+                editAction.innerHTML = '<span class="material-symbols-outlined">edit</span> Изменить';
+                editAction.addEventListener('click', () => {
+                    currentEditKey = msgKey;
+                    messageInput.value = data.text || '';
+                    editPreviewText.textContent = data.text || '';
+                    editPreview.classList.remove('hidden');
+                    currentReplyData = null;
+                    replyPreview.classList.add('hidden');
+                    panel.remove();
+                    messageInput.focus();
+                });
+                panel.appendChild(editAction);
+
+                const deleteAction = document.createElement('button');
+                deleteAction.type = 'button';
+                deleteAction.classList.add('action-item');
+                deleteAction.innerHTML = '<span class="material-symbols-outlined">delete</span> Удалить';
+                deleteAction.addEventListener('click', () => {
+                    if (currentEditKey === msgKey) {
+                        currentEditKey = null;
+                        messageInput.value = '';
+                        editPreview.classList.add('hidden');
+                    }
+                    messagesRef.child(msgKey).remove();
+                    panel.remove();
+                });
+                panel.appendChild(deleteAction);
+            }
+
             container.appendChild(panel);
         });
 
@@ -666,6 +748,24 @@
 
     messagesRef.on('child_changed', (snapshot) => {
         const data = snapshot.val();
+        const msgKey = snapshot.key;
+        const container = document.querySelector(`.message-container[data-key="${msgKey}"]`);
+        
+        if (container) {
+            const textSpan = container.querySelector('.msg-text-content');
+            if (textSpan && data.text) {
+                textSpan.textContent = data.text;
+            }
+            
+            const footer = container.querySelector('.message-footer');
+            if (footer && data.edited && !footer.querySelector('.edited-mark')) {
+                const editedSpan = document.createElement('span');
+                editedSpan.classList.add('edited-mark');
+                editedSpan.textContent = 'изм.';
+                footer.insertBefore(editedSpan, footer.firstChild);
+            }
+        }
+
         if (data.userId === userId && data.read) {
             const allMsgs = document.querySelectorAll('.message.outgoing');
             const lastMsg = allMsgs[allMsgs.length - 1];
@@ -675,6 +775,14 @@
                     status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
                 }
             }
+        }
+    });
+
+    messagesRef.on('child_removed', (snapshot) => {
+        const msgKey = snapshot.key;
+        const container = document.querySelector(`.message-container[data-key="${msgKey}"]`);
+        if (container) {
+            container.remove();
         }
     });
 </script>
