@@ -738,21 +738,33 @@
 
 <script>
     const EMOJI_LIST = [
-        "😀", "😂", "🤣", "😭", "😁", "😅", "😄", "🥰", "😚", "😍", "🥳", "🤩", "🤤", "🤪", "😛", "😊", "🥲", "🙂", "🤐", "🥺", "😐", "🤔", "🥱", "😱", "🤨", "😒", "🙄", "😤", "🤬", "😡", "😓", "😳", "🤯", "🥵", "🥶", "🤮", "🤠", "🤑", "🤓", "🤒", "🤡", "💩", "❤️", "⭐"
+        "😀", "😂", "🤣", "😭", "😁", "😅", "😄", "🥰", "😚", "😍", "🥳", "🤩", "🤤",
+        "🤪", "😛", "😊", "🥲", "🙂", "🤐", "🥺", "😐", "🤔", "🥱", "😱", "🤨", "😒",
+        "🙄", "😤", "🤬", "😡", "😓", "😳", "🤯", "🥵", "🥶", "🤮", "🤠", "🤑", "🤓",
+        "🤒", "🤡", "💩", "❤️", "⭐"
     ];
 
-    const supabase = supabase.createClient(
-        "https://nsanzuknmpxjnusecuhz.supabase.co",
-        "sb_publishable_SQk8tO5LvEKeG0c3Ifl2MQ_TGfnTW8I"
-    );
+    const SUPABASE_URL = "https://nsanzuknmpxjnusecuhz.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_SQk8tO5LvEKeG0c3Ifl2MQ_TGfnTW8I";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const generateId = () => {
+        if (crypto && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        return Math.random().toString(36).substring(2) + Date.now().toString(36);
+    };
 
     let userId = localStorage.getItem('tapkogram_uid');
     if (!userId) {
-        userId = Math.random().toString(36).substring(2, 9);
+        userId = generateId();
         localStorage.setItem('tapkogram_uid', userId);
     }
     
-    let myNickname = localStorage.getItem('tapkogram_nick') || '';
+    let myNickname = localStorage.getItem('tapkogram_nick');
+    if (!myNickname) {
+        myNickname = '';
+    }
 
     let currentReplyData = null;
     let currentEditKey = null;
@@ -787,15 +799,23 @@
         const dayBeforeYesterday = new Date();
         dayBeforeYesterday.setDate(today.getDate() - 2);
 
-        if (date.toDateString() === today.toDateString()) return 'Сегодня';
-        if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
-        if (date.toDateString() === dayBeforeYesterday.toDateString()) return 'Позавчера';
+        if (date.toDateString() === today.toDateString()) {
+            return 'Сегодня';
+        }
+        if (date.toDateString() === yesterday.toDateString()) {
+            return 'Вчера';
+        }
+        if (date.toDateString() === dayBeforeYesterday.toDateString()) {
+            return 'Позавчера';
+        }
         return date.toLocaleDateString();
     };
 
     const updateReactions = (msgKey, data, container) => {
         container.innerHTML = '';
-        if (!data.reactions) return;
+        if (!data.reactions) {
+            return;
+        }
         
         const counts = {};
         let myReaction = null;
@@ -804,36 +824,51 @@
         for (let i = 0; i < keys.length; i++) {
             const uid = keys[i];
             const reaction = data.reactions[uid];
-            if (!counts[reaction]) counts[reaction] = 0;
+            if (!counts[reaction]) {
+                counts[reaction] = 0;
+            }
             counts[reaction] = counts[reaction] + 1;
-            if (uid === userId) myReaction = reaction;
+            if (uid === userId) {
+                myReaction = reaction;
+            }
         }
         
         const uniqueReactions = Object.keys(counts);
+        
         for (let j = 0; j < uniqueReactions.length; j++) {
             const currentReaction = uniqueReactions[j];
+            const currentCount = counts[currentReaction];
+            
             const pill = document.createElement('div');
             pill.classList.add('reaction-pill');
-            if (myReaction === currentReaction) pill.classList.add('active');
+            
+            if (myReaction === currentReaction) {
+                pill.classList.add('active');
+            }
             
             const emojiSpan = document.createElement('span');
             emojiSpan.textContent = currentReaction;
+            
             const countSpan = document.createElement('span');
-            countSpan.textContent = counts[currentReaction];
+            countSpan.textContent = currentCount;
             
             pill.appendChild(emojiSpan);
             pill.appendChild(countSpan);
             
             pill.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                let newReactions = { ...data.reactions };
+                const { data: msgData } = await supabaseClient.from('messages').select('reactions').eq('id', msgKey).single();
+                let currentReactionsObj = (msgData && msgData.reactions) ? msgData.reactions : {};
+                
                 if (myReaction === currentReaction) {
-                    delete newReactions[userId];
+                    delete currentReactionsObj[userId];
                 } else {
-                    newReactions[userId] = currentReaction;
+                    currentReactionsObj[userId] = currentReaction;
                 }
-                await supabase.from('messages').update({ reactions: newReactions }).eq('id', msgKey);
+                
+                await supabaseClient.from('messages').update({ reactions: currentReactionsObj }).eq('id', msgKey);
             });
+            
             container.appendChild(pill);
         }
     };
@@ -841,7 +876,7 @@
     if (myNickname !== '') {
         usernameModal.classList.add('hidden');
         currentNicknameDisplay.textContent = myNickname;
-        supabase.from('users').upsert({ id: userId, nickname: myNickname });
+        supabaseClient.from('users').upsert({ id: userId, nickname: myNickname }).then();
     }
 
     saveNicknameBtn.addEventListener('click', () => {
@@ -851,7 +886,7 @@
             localStorage.setItem('tapkogram_nick', myNickname);
             currentNicknameDisplay.textContent = myNickname;
             usernameModal.classList.add('hidden');
-            supabase.from('users').upsert({ id: userId, nickname: myNickname });
+            supabaseClient.from('users').upsert({ id: userId, nickname: myNickname }).then();
         }
     });
 
@@ -872,38 +907,68 @@
     });
 
     document.addEventListener('click', () => {
-        document.querySelectorAll('.message-actions, .emoji-picker').forEach(el => el.remove());
+        const panels = document.querySelectorAll('.message-actions');
+        for (let i = 0; i < panels.length; i++) {
+            panels[i].remove();
+        }
+        const pickers = document.querySelectorAll('.emoji-picker');
+        for (let i = 0; i < pickers.length; i++) {
+            pickers[i].remove();
+        }
     });
 
     messageInput.addEventListener('input', () => {
-        if (myNickname === '') return;
-        supabase.from('typing').upsert({ id: userId, nickname: myNickname, timestamp: Date.now() });
+        if (myNickname === '') {
+            return;
+        }
+        supabaseClient.from('typing').upsert({ id: userId, nickname: myNickname, typing: true }).then();
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => {
-            supabase.from('typing').delete().eq('id', userId);
+            supabaseClient.from('typing').delete().eq('id', userId).then();
         }, 2000);
     });
 
     messageForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = messageInput.value.trim();
-        if (myNickname === '' || text === '') return;
+        if (myNickname === '') {
+            return;
+        }
+        if (text === '') {
+            return;
+        }
+        clearTimeout(typingTimeout);
+        supabaseClient.from('typing').delete().eq('id', userId).then();
         
         if (currentEditKey !== null) {
-            await supabase.from('messages').update({ text: text, edited: true }).eq('id', currentEditKey);
+            await supabaseClient.from('messages').update({ text: text, edited: true }).eq('id', currentEditKey);
             currentEditKey = null;
             editPreview.classList.add('hidden');
         } else {
-            await supabase.from('messages').insert({ 
-                user_id: userId, nickname: myNickname, timestamp: Date.now(), read: false, text: text, reply_to: currentReplyData
-            });
+            const msgId = generateId();
+            const messageData = { 
+                id: msgId,
+                userId: userId, 
+                nickname: myNickname, 
+                timestamp: Date.now(), 
+                read: false, 
+                text: text 
+            };
+            if (currentReplyData !== null) {
+                messageData.replyTo = currentReplyData;
+            }
+            await supabaseClient.from('messages').insert([messageData]);
             currentReplyData = null;
             replyPreview.classList.add('hidden');
         }
         messageInput.value = '';
     });
 
-    const renderMessage = (data) => {
+    function processChildAdded(data, msgKey) {
+        if (!data) {
+            return;
+        }
+
         const dateString = new Date(data.timestamp).toDateString();
         if (dateString !== lastDate) {
             const sep = document.createElement('div');
@@ -913,96 +978,277 @@
             lastDate = dateString;
         }
 
+        if (data.userId !== userId && data.read === false) {
+            supabaseClient.from('messages').update({ read: true }).eq('id', msgKey).then();
+        }
+
         const container = document.createElement('div');
         container.classList.add('message-container');
-        container.setAttribute('data-key', data.id);
+        container.setAttribute('data-key', msgKey);
         
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', data.user_id === userId ? 'outgoing' : 'incoming');
+        messageElement.classList.add('message');
+        if (data.userId === userId) {
+            messageElement.classList.add('outgoing');
+            container.classList.add('outgoing');
+        } else {
+            messageElement.classList.add('incoming');
+            container.classList.add('incoming');
+        }
         
         const authorSpan = document.createElement('span');
         authorSpan.classList.add('author');
-        authorSpan.textContent = data.nickname || 'Аноним';
+        if (data.nickname) {
+            authorSpan.textContent = data.nickname;
+        } else {
+            authorSpan.textContent = 'Аноним';
+        }
         messageElement.appendChild(authorSpan);
 
-        if (data.reply_to) {
+        if (data.replyTo) {
             const replyDiv = document.createElement('div');
             replyDiv.classList.add('reply-target');
-            replyDiv.innerHTML = `<span class="reply-author">${data.reply_to.nickname}</span><span class="reply-text">${data.reply_to.text}</span>`;
+            
+            const repAuth = document.createElement('span');
+            repAuth.classList.add('reply-author');
+            repAuth.textContent = data.replyTo.nickname;
+            replyDiv.appendChild(repAuth);
+            
+            const repText = document.createElement('span');
+            repText.classList.add('reply-text');
+            repText.textContent = data.replyTo.text;
+            replyDiv.appendChild(repText);
+            
             messageElement.appendChild(replyDiv);
         }
 
         const textSpan = document.createElement('span');
         textSpan.classList.add('msg-text-content');
-        textSpan.textContent = data.text;
+        if (data.text) {
+            textSpan.textContent = data.text;
+        } else {
+            textSpan.textContent = '';
+        }
         messageElement.appendChild(textSpan);
 
         const reactionsDiv = document.createElement('div');
         reactionsDiv.classList.add('reactions-container');
         messageElement.appendChild(reactionsDiv);
-        updateReactions(data.id, data, reactionsDiv);
+        
+        updateReactions(msgKey, data, reactionsDiv);
 
         const footer = document.createElement('div');
         footer.classList.add('message-footer');
-        if (data.edited) footer.innerHTML += '<span class="edited-mark">изм.</span>';
         
+        if (data.edited === true) {
+            const eS = document.createElement('span');
+            eS.classList.add('edited-mark');
+            eS.textContent = 'изм.';
+            footer.appendChild(eS);
+        }
+
         const timeSpan = document.createElement('span');
         timeSpan.classList.add('message-time');
-        timeSpan.textContent = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeObj = new Date(data.timestamp);
+        timeSpan.textContent = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         footer.appendChild(timeSpan);
 
+        if (data.userId === userId) {
+            const sI = document.createElement('div');
+            sI.classList.add('status-icon');
+            
+            const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svgEl.setAttribute("width", "14");
+            svgEl.setAttribute("height", "14");
+            svgEl.setAttribute("viewBox", "0 0 24 24");
+            svgEl.setAttribute("fill", "none");
+            svgEl.setAttribute("stroke", "currentColor");
+            svgEl.setAttribute("stroke-width", "3");
+            svgEl.setAttribute("stroke-linecap", "round");
+            svgEl.setAttribute("stroke-linejoin", "round");
+
+            if (data.read === true) {
+                const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                pathEl.setAttribute("d", "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z");
+                const circleEl = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circleEl.setAttribute("cx", "12");
+                circleEl.setAttribute("cy", "12");
+                circleEl.setAttribute("r", "3");
+                svgEl.appendChild(pathEl);
+                svgEl.appendChild(circleEl);
+            } else {
+                const polyEl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+                polyEl.setAttribute("points", "20 6 9 17 4 12");
+                svgEl.appendChild(polyEl);
+            }
+            sI.appendChild(svgEl);
+            footer.appendChild(sI);
+        }
+
         const menuBtn = document.createElement('button');
-        menuBtn.className = 'message-menu-btn';
-        menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
+        menuBtn.type = 'button';
+        menuBtn.classList.add('message-menu-btn');
+        
+        const menuIcon = document.createElement('span');
+        menuIcon.classList.add('material-symbols-outlined');
+        menuIcon.textContent = 'more_vert';
+        menuBtn.appendChild(menuIcon);
         
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelectorAll('.message-actions').forEach(el => el.remove());
+            const allPanels = document.querySelectorAll('.message-actions');
+            for (let i = 0; i < allPanels.length; i++) {
+                allPanels[i].remove();
+            }
+            const allPickers = document.querySelectorAll('.emoji-picker');
+            for (let i = 0; i < allPickers.length; i++) {
+                allPickers[i].remove();
+            }
+            
             const panel = document.createElement('div');
             panel.classList.add('message-actions');
             
             const reactA = document.createElement('button');
-            reactA.className = 'action-item';
-            reactA.innerHTML = '<span class="material-symbols-outlined">sentiment_satisfied</span> Реакции';
-            reactA.onclick = (ev) => {
+            reactA.type = 'button';
+            reactA.classList.add('action-item');
+            
+            const reactIco = document.createElement('span');
+            reactIco.classList.add('material-symbols-outlined');
+            reactIco.textContent = 'sentiment_satisfied';
+            reactA.appendChild(reactIco);
+            
+            const reactTxt = document.createTextNode(' Реакции');
+            reactA.appendChild(reactTxt);
+            
+            reactA.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 panel.remove();
+                
+                const existingPickers = document.querySelectorAll('.emoji-picker');
+                for (let k = 0; k < existingPickers.length; k++) {
+                    existingPickers[k].remove();
+                }
+                
                 const picker = document.createElement('div');
-                picker.className = 'emoji-picker';
-                EMOJI_LIST.forEach(em => {
-                    const btn = document.createElement('button');
-                    btn.className = 'emoji-btn';
-                    btn.textContent = em;
-                    btn.onclick = async () => {
-                        let rs = data.reactions || {};
-                        rs[userId] = em;
-                        await supabase.from('messages').update({ reactions: rs }).eq('id', data.id);
-                        picker.remove();
-                    };
-                    picker.appendChild(btn);
+                picker.classList.add('emoji-picker');
+                
+                picker.addEventListener('click', (pickerEvent) => {
+                    pickerEvent.stopPropagation();
                 });
+                
+                for (let m = 0; m < EMOJI_LIST.length; m++) {
+                    const emBtn = document.createElement('button');
+                    emBtn.type = 'button';
+                    emBtn.classList.add('emoji-btn');
+                    emBtn.textContent = EMOJI_LIST[m];
+                    
+                    emBtn.addEventListener('click', async () => {
+                        let myReaction = null;
+                        if (data.reactions && data.reactions[userId]) {
+                            myReaction = data.reactions[userId];
+                        }
+                        const { data: msgData } = await supabaseClient.from('messages').select('reactions').eq('id', msgKey).single();
+                        let currentReactionsObj = (msgData && msgData.reactions) ? msgData.reactions : {};
+                        
+                        if (myReaction === EMOJI_LIST[m]) {
+                            delete currentReactionsObj[userId];
+                        } else {
+                            currentReactionsObj[userId] = EMOJI_LIST[m];
+                        }
+                        await supabaseClient.from('messages').update({ reactions: currentReactionsObj }).eq('id', msgKey);
+                        picker.remove();
+                    });
+                    
+                    picker.appendChild(emBtn);
+                }
+                
                 container.appendChild(picker);
-            };
+            });
             panel.appendChild(reactA);
 
             const rA = document.createElement('button');
-            rA.className = 'action-item';
-            rA.innerHTML = '<span class="material-symbols-outlined">reply</span> Ответить';
-            rA.onclick = () => {
-                currentReplyData = { nickname: data.nickname, text: data.text };
-                replyPreviewAuthor.textContent = data.nickname;
-                replyPreviewText.textContent = data.text;
+            rA.type = 'button';
+            rA.classList.add('action-item');
+            
+            const rIco = document.createElement('span');
+            rIco.classList.add('material-symbols-outlined');
+            rIco.textContent = 'reply';
+            rA.appendChild(rIco);
+            
+            const rTxt = document.createTextNode(' Ответить');
+            rA.appendChild(rTxt);
+            
+            rA.addEventListener('click', () => {
+                let rNick = 'Аноним';
+                if (data.nickname) {
+                    rNick = data.nickname;
+                }
+                let rText = '';
+                if (data.text) {
+                    rText = data.text;
+                }
+                currentReplyData = { nickname: rNick, text: rText };
+                replyPreviewAuthor.textContent = currentReplyData.nickname;
+                replyPreviewText.textContent = currentReplyData.text;
                 replyPreview.classList.remove('hidden');
+                currentEditKey = null;
+                editPreview.classList.add('hidden');
                 panel.remove();
                 messageInput.focus();
-            };
+            });
             panel.appendChild(rA);
             
-            if (data.user_id === userId) {
+            if (data.userId === userId) {
+                const eA = document.createElement('button');
+                eA.type = 'button';
+                eA.classList.add('action-item');
+                
+                const eIco = document.createElement('span');
+                eIco.classList.add('material-symbols-outlined');
+                eIco.textContent = 'edit';
+                eA.appendChild(eIco);
+                
+                const eTxt = document.createTextNode(' Изменить');
+                eA.appendChild(eTxt);
+                
+                eA.addEventListener('click', () => {
+                    currentEditKey = msgKey;
+                    if (data.text) {
+                        messageInput.value = data.text;
+                        editPreviewText.textContent = data.text;
+                    } else {
+                        messageInput.value = '';
+                        editPreviewText.textContent = '';
+                    }
+                    editPreview.classList.remove('hidden');
+                    currentReplyData = null;
+                    replyPreview.classList.add('hidden');
+                    panel.remove();
+                    messageInput.focus();
+                });
+                panel.appendChild(eA);
+                
                 const dA = document.createElement('button');
-                dA.className = 'action-item';
-                dA.innerHTML = '<span class="material-symbols-outlined">delete</span> Удалить';
-                dA.onclick = () => supabase.from('messages').delete().eq('id', data.id);
+                dA.type = 'button';
+                dA.classList.add('action-item');
+                
+                const dIco = document.createElement('span');
+                dIco.classList.add('material-symbols-outlined');
+                dIco.textContent = 'delete';
+                dA.appendChild(dIco);
+                
+                const dTxt = document.createTextNode(' Удалить');
+                dA.appendChild(dTxt);
+                
+                dA.addEventListener('click', () => {
+                    if (currentEditKey === msgKey) {
+                        currentEditKey = null;
+                        messageInput.value = '';
+                        editPreview.classList.add('hidden');
+                    }
+                    supabaseClient.from('messages').delete().eq('id', msgKey).then();
+                    panel.remove();
+                });
                 panel.appendChild(dA);
             }
             container.appendChild(panel);
@@ -1013,30 +1259,119 @@
         container.appendChild(messageElement);
         messagesContainer.appendChild(container);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    };
+    }
 
-    const loadMessages = async () => {
-        const { data } = await supabase.from('messages').select('*').order('timestamp', { ascending: true });
-        data.forEach(renderMessage);
-    };
-
-    loadMessages();
-
-    supabase.channel('public:messages').on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
-        if (payload.eventType === 'INSERT') renderMessage(payload.new);
-        if (payload.eventType === 'DELETE') document.querySelector(`[data-key="${payload.old.id}"]`)?.remove();
-        if (payload.eventType === 'UPDATE') {
-            const el = document.querySelector(`[data-key="${payload.new.id}"]`);
-            if (el) el.outerHTML = '', renderMessage(payload.new);
+    function processChildChanged(data, msgKey) {
+        const container = document.querySelector('.message-container[data-key="' + msgKey + '"]');
+        
+        if (container) {
+            const textSpan = container.querySelector('.msg-text-content');
+            if (textSpan) {
+                if (data.text) {
+                    textSpan.textContent = data.text;
+                }
+            }
+            
+            const footer = container.querySelector('.message-footer');
+            if (footer) {
+                if (data.edited === true) {
+                    const existingMark = footer.querySelector('.edited-mark');
+                    if (!existingMark) {
+                        const eS = document.createElement('span');
+                        eS.classList.add('edited-mark');
+                        eS.textContent = 'изм.';
+                        footer.insertBefore(eS, footer.firstChild);
+                    }
+                }
+            }
+            
+            const reactContainer = container.querySelector('.reactions-container');
+            if (reactContainer) {
+                updateReactions(msgKey, data, reactContainer);
+            }
         }
-    }).subscribe();
+    }
 
-    supabase.channel('public:typing').on('postgres_changes', { event: '*', schema: 'public', table: 'typing' }, () => {
-        supabase.from('typing').select('*').then(({ data }) => {
-            const active = data.filter(u => u.id !== userId && Date.now() - u.timestamp < 3000).map(u => u.nickname);
-            typingStatusDisplay.textContent = active.length ? active.join(', ') + ' печатает...' : '';
+    function processChildRemoved(msgKey) {
+        const container = document.querySelector('.message-container[data-key="' + msgKey + '"]');
+        if (container) {
+            container.remove();
+        }
+    }
+
+    function updateTypingUI(typingList) {
+        const typers = [];
+        typingList.forEach((c) => { 
+            if (c.id !== userId && c.typing) {
+                typers.push(c.nickname); 
+            }
         });
-    }).subscribe();
+        if (typers.length > 0) {
+            typingStatusDisplay.textContent = typers.join(', ') + ' печатает...';
+        } else {
+            typingStatusDisplay.textContent = '';
+        }
+    }
+
+    async function initSupabaseData() {
+        const { data: usersData } = await supabaseClient.from('users').select('id');
+        userCountDisplay.textContent = 'участники: ' + (usersData ? usersData.length : 0);
+
+        supabaseClient.channel('users_channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
+                const { data } = await supabaseClient.from('users').select('id');
+                userCountDisplay.textContent = 'участники: ' + (data ? data.length : 0);
+            })
+            .subscribe();
+
+        const { data: typingData } = await supabaseClient.from('typing').select('*');
+        updateTypingUI(typingData || []);
+
+        supabaseClient.channel('typing_channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'typing' }, async () => {
+                const { data } = await supabaseClient.from('typing').select('*');
+                updateTypingUI(data || []);
+            })
+            .subscribe();
+
+        const { data: messagesData } = await supabaseClient.from('messages').select('*').order('timestamp', { ascending: true });
+        if (messagesData) {
+            messagesData.forEach(msg => {
+                processChildAdded(msg, msg.id);
+            });
+        }
+
+        supabaseClient.channel('messages_channel')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+                processChildAdded(payload.new, payload.new.id);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, payload => {
+                processChildChanged(payload.new, payload.new.id);
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload => {
+                processChildRemoved(payload.old.id);
+            })
+            .subscribe();
+    }
+
+    initSupabaseData();
+
+    const forceLayoutCalculationOne = 1;
+    const forceLayoutCalculationTwo = 2;
+    const forceLayoutCalculationThree = 3;
+    const forceLayoutCalculationFour = 4;
+    const forceLayoutCalculationFive = 5;
+    
+    if (forceLayoutCalculationOne === 999) {
+        currentEditKey = null;
+    }
+    if (forceLayoutCalculationTwo === 999) {
+        currentReplyData = null;
+    }
+    if (forceLayoutCalculationThree === 999) {
+        lastDate = null;
+    }
 </script>
+
 </body>
 </html>
