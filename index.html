@@ -28,7 +28,7 @@
             --outline: #523a52;
         }
 
-        html, body {
+        html {
             width: 100%;
             height: 100%;
             height: -webkit-fill-available;
@@ -39,6 +39,13 @@
         }
 
         body {
+            width: 100%;
+            height: 100%;
+            height: -webkit-fill-available;
+            background-color: var(--bg-main);
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
             color: var(--text-main);
             display: flex;
             flex-direction: column;
@@ -179,6 +186,75 @@
             opacity: 0.8;
         }
 
+        .reactions-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+            margin-bottom: 2px;
+        }
+
+        .reaction-pill {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--bg-surface-variant);
+            border-radius: 12px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .reaction-pill.active {
+            background: var(--color-primary-container);
+            border-color: var(--color-primary);
+            color: var(--color-on-primary-container);
+        }
+
+        .emoji-picker {
+            position: absolute;
+            background: var(--bg-surface-variant);
+            border: 1px solid var(--outline);
+            border-radius: 12px;
+            padding: 8px;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            max-height: 220px;
+            overflow-y: auto;
+            top: 100%;
+        }
+
+        .message-container.incoming .emoji-picker {
+            left: 16px;
+        }
+
+        .message-container.outgoing .emoji-picker {
+            right: 16px;
+        }
+
+        .emoji-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .emoji-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         .message-footer {
             display: flex;
             align-items: center;
@@ -291,7 +367,12 @@
             align-items: center;
         }
 
-        #replyPreview, #editPreview {
+        #replyPreview {
+            border-left: 4px solid var(--color-primary);
+            margin-bottom: 4px;
+        }
+
+        #editPreview {
             border-left: 4px solid var(--color-primary);
             margin-bottom: 4px;
         }
@@ -354,7 +435,10 @@
 
         #usernameModal {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: var(--bg-main);
             display: flex;
             flex-direction: column;
@@ -383,7 +467,7 @@
         .hidden {
             display: none !important;
         }
-        
+
         .edited-mark {
             font-size: 11px;
             opacity: 0.5;
@@ -451,6 +535,53 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <script>
+    const EMOJI_LIST = [
+        "😀",
+        "😂",
+        "🤣",
+        "😭",
+        "😁",
+        "😅",
+        "😄",
+        "🥰",
+        "😚",
+        "😍",
+        "🥳",
+        "🤩",
+        "🤤",
+        "🤪",
+        "😛",
+        "😊",
+        "🥲",
+        "🙂",
+        "🤐",
+        "🥺",
+        "😐",
+        "🤔",
+        "🥱",
+        "😱",
+        "🤨",
+        "😒",
+        "🙄",
+        "😤",
+        "🤬",
+        "😡",
+        "😓",
+        "😳",
+        "🤯",
+        "🥵",
+        "🥶",
+        "🤮",
+        "🤠",
+        "🤑",
+        "🤓",
+        "🤒",
+        "🤡",
+        "💩",
+        "❤️",
+        "⭐"
+    ];
+
     const firebaseConfig = {
         apiKey: "AIzaSyCgrN0wvT9hMaKjm33jjCVMbxNcLPEvYOU",
         authDomain: "prmesenger.firebaseapp.com",
@@ -474,7 +605,11 @@
         localStorage.setItem('tapkogram_uid', userId);
     }
     
-    let myNickname = localStorage.getItem('tapkogram_nick') || '';
+    let myNickname = localStorage.getItem('tapkogram_nick');
+    if (!myNickname) {
+        myNickname = '';
+    }
+
     let currentReplyData = null;
     let currentEditKey = null;
     let typingTimeout = null;
@@ -500,7 +635,7 @@
     const userCountDisplay = document.getElementById('userCount');
     const typingStatusDisplay = document.getElementById('typingStatus');
 
-    function getDayLabel(timestamp) {
+    const getDayLabel = (timestamp) => {
         const date = new Date(timestamp);
         const today = new Date();
         const yesterday = new Date();
@@ -508,13 +643,75 @@
         const dayBeforeYesterday = new Date();
         dayBeforeYesterday.setDate(today.getDate() - 2);
 
-        if (date.toDateString() === today.toDateString()) return 'Сегодня';
-        if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
-        if (date.toDateString() === dayBeforeYesterday.toDateString()) return 'Позавчера';
+        if (date.toDateString() === today.toDateString()) {
+            return 'Сегодня';
+        }
+        if (date.toDateString() === yesterday.toDateString()) {
+            return 'Вчера';
+        }
+        if (date.toDateString() === dayBeforeYesterday.toDateString()) {
+            return 'Позавчера';
+        }
         return date.toLocaleDateString();
-    }
+    };
 
-    if (myNickname) {
+    const updateReactions = (msgKey, data, container) => {
+        container.innerHTML = '';
+        if (!data.reactions) {
+            return;
+        }
+        
+        const counts = {};
+        let myReaction = null;
+        const keys = Object.keys(data.reactions);
+        
+        for (let i = 0; i < keys.length; i++) {
+            const uid = keys[i];
+            const reaction = data.reactions[uid];
+            if (!counts[reaction]) {
+                counts[reaction] = 0;
+            }
+            counts[reaction] = counts[reaction] + 1;
+            if (uid === userId) {
+                myReaction = reaction;
+            }
+        }
+        
+        const uniqueReactions = Object.keys(counts);
+        
+        for (let j = 0; j < uniqueReactions.length; j++) {
+            const currentReaction = uniqueReactions[j];
+            const currentCount = counts[currentReaction];
+            
+            const pill = document.createElement('div');
+            pill.classList.add('reaction-pill');
+            
+            if (myReaction === currentReaction) {
+                pill.classList.add('active');
+            }
+            
+            const emojiSpan = document.createElement('span');
+            emojiSpan.textContent = currentReaction;
+            
+            const countSpan = document.createElement('span');
+            countSpan.textContent = currentCount;
+            
+            pill.appendChild(emojiSpan);
+            pill.appendChild(countSpan);
+            
+            pill.addEventListener('click', () => {
+                if (myReaction === currentReaction) {
+                    messagesRef.child(msgKey).child('reactions').child(userId).remove();
+                } else {
+                    messagesRef.child(msgKey).child('reactions').child(userId).set(currentReaction);
+                }
+            });
+            
+            container.appendChild(pill);
+        }
+    };
+
+    if (myNickname !== '') {
         usernameModal.classList.add('hidden');
         currentNicknameDisplay.textContent = myNickname;
         usersRef.child(userId).set({ nickname: myNickname });
@@ -522,7 +719,7 @@
 
     saveNicknameBtn.addEventListener('click', () => {
         const value = nicknameInput.value.trim();
-        if (value) {
+        if (value !== '') {
             myNickname = value;
             localStorage.setItem('tapkogram_nick', myNickname);
             currentNicknameDisplay.textContent = myNickname;
@@ -548,11 +745,20 @@
     });
 
     document.addEventListener('click', () => {
-        document.querySelectorAll('.message-actions').forEach(panel => panel.remove());
+        const panels = document.querySelectorAll('.message-actions');
+        for (let i = 0; i < panels.length; i++) {
+            panels[i].remove();
+        }
+        const pickers = document.querySelectorAll('.emoji-picker');
+        for (let i = 0; i < pickers.length; i++) {
+            pickers[i].remove();
+        }
     });
 
     messageInput.addEventListener('input', () => {
-        if (!myNickname) return;
+        if (myNickname === '') {
+            return;
+        }
         typingRef.child(userId).set({ nickname: myNickname, typing: true });
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => {
@@ -563,16 +769,30 @@
     messageForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = messageInput.value.trim();
-        if (!myNickname || !text) return;
+        if (myNickname === '') {
+            return;
+        }
+        if (text === '') {
+            return;
+        }
         clearTimeout(typingTimeout);
         typingRef.child(userId).remove();
-        if (currentEditKey) {
+        
+        if (currentEditKey !== null) {
             messagesRef.child(currentEditKey).update({ text: text, edited: true });
             currentEditKey = null;
             editPreview.classList.add('hidden');
         } else {
-            const messageData = { userId, nickname: myNickname, timestamp: Date.now(), read: false, text };
-            if (currentReplyData) messageData.replyTo = currentReplyData;
+            const messageData = { 
+                userId: userId, 
+                nickname: myNickname, 
+                timestamp: Date.now(), 
+                read: false, 
+                text: text 
+            };
+            if (currentReplyData !== null) {
+                messageData.replyTo = currentReplyData;
+            }
             messagesRef.push(messageData);
             currentReplyData = null;
             replyPreview.classList.add('hidden');
@@ -580,55 +800,103 @@
         messageInput.value = '';
     });
 
-    usersRef.on('value', (s) => userCountDisplay.textContent = `участники: ${s.numChildren()}`);
+    usersRef.on('value', (s) => {
+        userCountDisplay.textContent = 'участники: ' + s.numChildren();
+    });
+
     typingRef.on('value', (s) => {
         const typers = [];
-        s.forEach(c => { if (c.key !== userId) typers.push(c.val().nickname); });
-        typingStatusDisplay.textContent = typers.length > 0 ? `${typers.join(', ')} печатает...` : '';
+        s.forEach((c) => { 
+            if (c.key !== userId) {
+                typers.push(c.val().nickname); 
+            }
+        });
+        if (typers.length > 0) {
+            typingStatusDisplay.textContent = typers.join(', ') + ' печатает...';
+        } else {
+            typingStatusDisplay.textContent = '';
+        }
     });
 
     messagesRef.on('child_added', (snapshot) => {
         const data = snapshot.val();
         const msgKey = snapshot.key;
-        if (!data) return;
+        if (!data) {
+            return;
+        }
 
-        const date = new Date(data.timestamp).toDateString();
-        if (date !== lastDate) {
+        const dateString = new Date(data.timestamp).toDateString();
+        if (dateString !== lastDate) {
             const sep = document.createElement('div');
             sep.classList.add('date-separator');
             sep.textContent = getDayLabel(data.timestamp);
             messagesContainer.appendChild(sep);
-            lastDate = date;
+            lastDate = dateString;
         }
 
-        if (data.userId !== userId && !data.read) messagesRef.child(msgKey).update({ read: true });
+        if (data.userId !== userId && data.read === false) {
+            messagesRef.child(msgKey).update({ read: true });
+        }
 
         const container = document.createElement('div');
         container.classList.add('message-container');
         container.setAttribute('data-key', msgKey);
+        
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', data.userId === userId ? 'outgoing' : 'incoming');
+        messageElement.classList.add('message');
+        if (data.userId === userId) {
+            messageElement.classList.add('outgoing');
+            container.classList.add('outgoing');
+        } else {
+            messageElement.classList.add('incoming');
+            container.classList.add('incoming');
+        }
         
         const authorSpan = document.createElement('span');
         authorSpan.classList.add('author');
-        authorSpan.textContent = data.nickname || 'Аноним';
+        if (data.nickname) {
+            authorSpan.textContent = data.nickname;
+        } else {
+            authorSpan.textContent = 'Аноним';
+        }
         messageElement.appendChild(authorSpan);
 
         if (data.replyTo) {
             const replyDiv = document.createElement('div');
             replyDiv.classList.add('reply-target');
-            replyDiv.innerHTML = `<span class="reply-author">${data.replyTo.nickname}</span><span class="reply-text">${data.replyTo.text}</span>`;
+            
+            const repAuth = document.createElement('span');
+            repAuth.classList.add('reply-author');
+            repAuth.textContent = data.replyTo.nickname;
+            replyDiv.appendChild(repAuth);
+            
+            const repText = document.createElement('span');
+            repText.classList.add('reply-text');
+            repText.textContent = data.replyTo.text;
+            replyDiv.appendChild(repText);
+            
             messageElement.appendChild(replyDiv);
         }
 
         const textSpan = document.createElement('span');
         textSpan.classList.add('msg-text-content');
-        textSpan.textContent = data.text || '';
+        if (data.text) {
+            textSpan.textContent = data.text;
+        } else {
+            textSpan.textContent = '';
+        }
         messageElement.appendChild(textSpan);
+
+        const reactionsDiv = document.createElement('div');
+        reactionsDiv.classList.add('reactions-container');
+        messageElement.appendChild(reactionsDiv);
+        
+        updateReactions(msgKey, data, reactionsDiv);
 
         const footer = document.createElement('div');
         footer.classList.add('message-footer');
-        if (data.edited) {
+        
+        if (data.edited === true) {
             const eS = document.createElement('span');
             eS.classList.add('edited-mark');
             eS.textContent = 'изм.';
@@ -637,31 +905,133 @@
 
         const timeSpan = document.createElement('span');
         timeSpan.classList.add('message-time');
-        timeSpan.textContent = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeObj = new Date(data.timestamp);
+        timeSpan.textContent = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         footer.appendChild(timeSpan);
 
         if (data.userId === userId) {
             const sI = document.createElement('div');
             sI.classList.add('status-icon');
-            sI.innerHTML = data.read ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>` : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            
+            const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svgEl.setAttribute("width", "14");
+            svgEl.setAttribute("height", "14");
+            svgEl.setAttribute("viewBox", "0 0 24 24");
+            svgEl.setAttribute("fill", "none");
+            svgEl.setAttribute("stroke", "currentColor");
+            svgEl.setAttribute("stroke-width", "3");
+            svgEl.setAttribute("stroke-linecap", "round");
+            svgEl.setAttribute("stroke-linejoin", "round");
+
+            if (data.read === true) {
+                const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                pathEl.setAttribute("d", "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z");
+                const circleEl = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circleEl.setAttribute("cx", "12");
+                circleEl.setAttribute("cy", "12");
+                circleEl.setAttribute("r", "3");
+                svgEl.appendChild(pathEl);
+                svgEl.appendChild(circleEl);
+            } else {
+                const polyEl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+                polyEl.setAttribute("points", "20 6 9 17 4 12");
+                svgEl.appendChild(polyEl);
+            }
+            sI.appendChild(svgEl);
             footer.appendChild(sI);
         }
 
         const menuBtn = document.createElement('button');
         menuBtn.type = 'button';
         menuBtn.classList.add('message-menu-btn');
-        menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
+        
+        const menuIcon = document.createElement('span');
+        menuIcon.classList.add('material-symbols-outlined');
+        menuIcon.textContent = 'more_vert';
+        menuBtn.appendChild(menuIcon);
+        
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelectorAll('.message-actions').forEach(p => p.remove());
+            const allPanels = document.querySelectorAll('.message-actions');
+            for (let i = 0; i < allPanels.length; i++) {
+                allPanels[i].remove();
+            }
+            const allPickers = document.querySelectorAll('.emoji-picker');
+            for (let i = 0; i < allPickers.length; i++) {
+                allPickers[i].remove();
+            }
+            
             const panel = document.createElement('div');
             panel.classList.add('message-actions');
+            
+            const reactA = document.createElement('button');
+            reactA.type = 'button';
+            reactA.classList.add('action-item');
+            
+            const reactIco = document.createElement('span');
+            reactIco.classList.add('material-symbols-outlined');
+            reactIco.textContent = 'sentiment_satisfied';
+            reactA.appendChild(reactIco);
+            
+            const reactTxt = document.createTextNode(' Реакции');
+            reactA.appendChild(reactTxt);
+            
+            reactA.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                panel.remove();
+                
+                const existingPickers = document.querySelectorAll('.emoji-picker');
+                for (let k = 0; k < existingPickers.length; k++) {
+                    existingPickers[k].remove();
+                }
+                
+                const picker = document.createElement('div');
+                picker.classList.add('emoji-picker');
+                
+                picker.addEventListener('click', (pickerEvent) => {
+                    pickerEvent.stopPropagation();
+                });
+                
+                for (let m = 0; m < EMOJI_LIST.length; m++) {
+                    const emBtn = document.createElement('button');
+                    emBtn.type = 'button';
+                    emBtn.classList.add('emoji-btn');
+                    emBtn.textContent = EMOJI_LIST[m];
+                    
+                    emBtn.addEventListener('click', () => {
+                        messagesRef.child(msgKey).child('reactions').child(userId).set(EMOJI_LIST[m]);
+                        picker.remove();
+                    });
+                    
+                    picker.appendChild(emBtn);
+                }
+                
+                container.appendChild(picker);
+            });
+            panel.appendChild(reactA);
+
             const rA = document.createElement('button');
             rA.type = 'button';
             rA.classList.add('action-item');
-            rA.innerHTML = '<span class="material-symbols-outlined">reply</span> Ответить';
+            
+            const rIco = document.createElement('span');
+            rIco.classList.add('material-symbols-outlined');
+            rIco.textContent = 'reply';
+            rA.appendChild(rIco);
+            
+            const rTxt = document.createTextNode(' Ответить');
+            rA.appendChild(rTxt);
+            
             rA.addEventListener('click', () => {
-                currentReplyData = { nickname: data.nickname || 'Аноним', text: data.text || '' };
+                let rNick = 'Аноним';
+                if (data.nickname) {
+                    rNick = data.nickname;
+                }
+                let rText = '';
+                if (data.text) {
+                    rText = data.text;
+                }
+                currentReplyData = { nickname: rNick, text: rText };
                 replyPreviewAuthor.textContent = currentReplyData.nickname;
                 replyPreviewText.textContent = currentReplyData.text;
                 replyPreview.classList.remove('hidden');
@@ -671,15 +1041,29 @@
                 messageInput.focus();
             });
             panel.appendChild(rA);
+            
             if (data.userId === userId) {
                 const eA = document.createElement('button');
                 eA.type = 'button';
                 eA.classList.add('action-item');
-                eA.innerHTML = '<span class="material-symbols-outlined">edit</span> Изменить';
+                
+                const eIco = document.createElement('span');
+                eIco.classList.add('material-symbols-outlined');
+                eIco.textContent = 'edit';
+                eA.appendChild(eIco);
+                
+                const eTxt = document.createTextNode(' Изменить');
+                eA.appendChild(eTxt);
+                
                 eA.addEventListener('click', () => {
                     currentEditKey = msgKey;
-                    messageInput.value = data.text || '';
-                    editPreviewText.textContent = data.text || '';
+                    if (data.text) {
+                        messageInput.value = data.text;
+                        editPreviewText.textContent = data.text;
+                    } else {
+                        messageInput.value = '';
+                        editPreviewText.textContent = '';
+                    }
                     editPreview.classList.remove('hidden');
                     currentReplyData = null;
                     replyPreview.classList.add('hidden');
@@ -687,10 +1071,19 @@
                     messageInput.focus();
                 });
                 panel.appendChild(eA);
+                
                 const dA = document.createElement('button');
                 dA.type = 'button';
                 dA.classList.add('action-item');
-                dA.innerHTML = '<span class="material-symbols-outlined">delete</span> Удалить';
+                
+                const dIco = document.createElement('span');
+                dIco.classList.add('material-symbols-outlined');
+                dIco.textContent = 'delete';
+                dA.appendChild(dIco);
+                
+                const dTxt = document.createTextNode(' Удалить');
+                dA.appendChild(dTxt);
+                
                 dA.addEventListener('click', () => {
                     if (currentEditKey === msgKey) {
                         currentEditKey = null;
@@ -715,23 +1108,42 @@
     messagesRef.on('child_changed', (snapshot) => {
         const data = snapshot.val();
         const msgKey = snapshot.key;
-        const container = document.querySelector(`.message-container[data-key="${msgKey}"]`);
+        const container = document.querySelector('.message-container[data-key="' + msgKey + '"]');
+        
         if (container) {
             const textSpan = container.querySelector('.msg-text-content');
-            if (textSpan && data.text) textSpan.textContent = data.text;
+            if (textSpan) {
+                if (data.text) {
+                    textSpan.textContent = data.text;
+                }
+            }
+            
             const footer = container.querySelector('.message-footer');
-            if (footer && data.edited && !footer.querySelector('.edited-mark')) {
-                const eS = document.createElement('span');
-                eS.classList.add('edited-mark');
-                eS.textContent = 'изм.';
-                footer.insertBefore(eS, footer.firstChild);
+            if (footer) {
+                if (data.edited === true) {
+                    const existingMark = footer.querySelector('.edited-mark');
+                    if (!existingMark) {
+                        const eS = document.createElement('span');
+                        eS.classList.add('edited-mark');
+                        eS.textContent = 'изм.';
+                        footer.insertBefore(eS, footer.firstChild);
+                    }
+                }
+            }
+            
+            const reactContainer = container.querySelector('.reactions-container');
+            if (reactContainer) {
+                updateReactions(msgKey, data, reactContainer);
             }
         }
     });
 
     messagesRef.on('child_removed', (snapshot) => {
-        const container = document.querySelector(`.message-container[data-key="${snapshot.key}"]`);
-        if (container) container.remove();
+        const msgKey = snapshot.key;
+        const container = document.querySelector('.message-container[data-key="' + msgKey + '"]');
+        if (container) {
+            container.remove();
+        }
     });
 </script>
 
