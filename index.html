@@ -180,6 +180,12 @@
             opacity: 0.6;
         }
 
+        .status-icon {
+            display: flex;
+            align-items: center;
+            opacity: 0.6;
+        }
+
         .message-menu-btn {
             background: none;
             border: none;
@@ -602,7 +608,8 @@
         const messageData = {
             userId: userId,
             nickname: myNickname,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            read: false
         };
 
         if (text) {
@@ -652,7 +659,12 @@
 
     messagesRef.on('child_added', (snapshot) => {
         const data = snapshot.val();
+        const msgKey = snapshot.key;
         if (!data) return;
+
+        if (data.userId !== userId && !data.read) {
+            messagesRef.child(msgKey).update({ read: true });
+        }
 
         const container = document.createElement('div');
         container.classList.add('message-container');
@@ -721,6 +733,17 @@
         timeSpan.textContent = `${hours}:${minutes}`;
         footer.appendChild(timeSpan);
 
+        if (data.userId === userId) {
+            const statusIcon = document.createElement('div');
+            statusIcon.classList.add('status-icon');
+            if (data.read) {
+                statusIcon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+            } else {
+                statusIcon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            footer.appendChild(statusIcon);
+        }
+
         const menuBtn = document.createElement('button');
         menuBtn.type = 'button';
         menuBtn.classList.add('message-menu-btn');
@@ -760,6 +783,20 @@
         container.appendChild(messageElement);
         messagesContainer.appendChild(container);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
+
+    messagesRef.on('child_changed', (snapshot) => {
+        const data = snapshot.val();
+        if (data.userId === userId && data.read) {
+            const allMsgs = document.querySelectorAll('.message.outgoing');
+            const lastMsg = allMsgs[allMsgs.length - 1];
+            if (lastMsg) {
+                const status = lastMsg.querySelector('.status-icon');
+                if (status) {
+                    status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+                }
+            }
+        }
     });
 </script>
 
