@@ -98,7 +98,7 @@
         .message .author {
             font-size: 12px;
             font-weight: 500;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
             color: var(--color-primary);
         }
 
@@ -109,10 +109,6 @@
             border-bottom-left-radius: 4px;
         }
 
-        .message.incoming .author {
-            color: var(--color-primary);
-        }
-
         .message.outgoing {
             background-color: var(--color-primary-container);
             color: var(--color-on-primary-container);
@@ -120,8 +116,22 @@
             border-bottom-right-radius: 4px;
         }
 
-        .message.outgoing .author {
+        .message img, .message video {
+            max-width: 100%;
+            border-radius: 12px;
+            margin-top: 4px;
+        }
+
+        .file-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             color: var(--color-primary);
+            text-decoration: none;
+            margin-top: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 12px;
         }
 
         .message-form {
@@ -156,7 +166,7 @@
             border-color: var(--color-primary);
         }
 
-        button {
+        .btn-icon {
             width: 56px;
             height: 56px;
             border-radius: 28px;
@@ -168,9 +178,15 @@
             align-items: center;
             cursor: pointer;
             transition: box-shadow 0.2s;
+            flex-shrink: 0;
         }
 
-        button:active {
+        .btn-icon.secondary {
+            background-color: var(--bg-surface-variant);
+            color: var(--color-primary);
+        }
+
+        .btn-icon:active {
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
         }
 
@@ -178,7 +194,6 @@
             font-size: 24px;
         }
 
-        /* Модалка выбора ника */
         #usernameModal {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -229,7 +244,7 @@
     <div id="usernameModal">
         <h2>Введите ваш никнейм</h2>
         <input type="text" id="nicknameInput" placeholder="Ваш ник" autocomplete="off" maxlength="20">
-        <button id="saveNicknameBtn">Войти</button>
+        <button id="saveNicknameBtn" class="btn-icon">Войти</button>
     </div>
 
     <header>
@@ -240,10 +255,14 @@
     <div id="messages"></div>
 
     <form class="message-form" id="messageForm">
+        <input type="file" id="fileInput" class="hidden">
+        <button type="button" id="attachBtn" class="btn-icon secondary">
+            <span class="material-symbols-outlined">add</span>
+        </button>
         <div class="input-container">
-            <input type="text" id="messageInput" placeholder="Сообщение" autocomplete="off" required>
+            <input type="text" id="messageInput" placeholder="Сообщение" autocomplete="off">
         </div>
-        <button type="submit">
+        <button type="submit" class="btn-icon">
             <span class="material-symbols-outlined">send</span>
         </button>
     </form>
@@ -251,6 +270,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
 <script>
     const firebaseConfig = {
@@ -266,6 +286,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const storage = firebase.storage();
     const messagesRef = db.ref('messages');
 
     const userId = Math.random().toString(36).substring(2, 9);
@@ -278,6 +299,8 @@
     const nicknameInput = document.getElementById('nicknameInput');
     const saveNicknameBtn = document.getElementById('saveNicknameBtn');
     const currentNicknameDisplay = document.getElementById('currentNickname');
+    const fileInput = document.getElementById('fileInput');
+    const attachBtn = document.getElementById('attachBtn');
 
     if (myNickname) {
         usernameModal.classList.add('hidden');
@@ -297,6 +320,38 @@
     currentNicknameDisplay.addEventListener('click', () => {
         nicknameInput.value = myNickname;
         usernameModal.classList.remove('hidden');
+    });
+
+    attachBtn.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file || !myNickname) return;
+
+        const fileRef = storage.ref().child(`uploads/${Date.now()}_${file.name}`);
+        
+        try {
+            attachBtn.style.opacity = '0.5';
+            const snapshot = await fileRef.put(file);
+            const downloadURL = await snapshot.ref.getDownloadURL();
+            attachBtn.style.opacity = '1';
+
+            messagesRef.push({
+                userId: userId,
+                nickname: myNickname,
+                text: '',
+                fileUrl: downloadURL,
+                fileName: file.name,
+                fileType: file.type,
+                timestamp: Date.now()
+            });
+            fileInput.value = '';
+        } catch (error) {
+            alert('Ошибка загрузки файла: ' + error.message);
+            attachBtn.style.opacity = '1';
+        }
     });
 
     messageForm.addEventListener('submit', (e) => {
@@ -329,12 +384,34 @@
         const authorSpan = document.createElement('span');
         authorSpan.classList.add('author');
         authorSpan.textContent = data.nickname || 'Аноним';
-        
-        const textSpan = document.createElement('span');
-        textSpan.textContent = data.text;
-
         messageElement.appendChild(authorSpan);
-        messageElement.appendChild(textSpan);
+
+        if (data.text) {
+            const textSpan = document.createElement('span');
+            textSpan.textContent = data.text;
+            messageElement.appendChild(textSpan);
+        }
+
+        if (data.fileUrl) {
+            if (data.fileType && data.fileType.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = data.fileUrl;
+                img.loading = 'lazy';
+                messageElement.appendChild(img);
+            } else if (data.fileType && data.fileType.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = data.fileUrl;
+                video.controls = true;
+                messageElement.appendChild(video);
+            } else {
+                const link = document.createElement('a');
+                link.href = data.fileUrl;
+                link.target = '_blank';
+                link.classList.add('file-link');
+                link.innerHTML = `<span class="material-symbols-outlined">description</span> <span>${data.fileName || 'Файл'}</span>`;
+                messageElement.appendChild(link);
+            }
+        }
         
         messagesContainer.appendChild(messageElement);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -342,5 +419,4 @@
 </script>
 
 </body>
-  </html>
-  
+</html>
