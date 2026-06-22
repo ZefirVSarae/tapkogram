@@ -107,6 +107,14 @@
             min-height: 0;
         }
 
+        .date-separator {
+            text-align: center;
+            padding: 10px 0;
+            font-size: 12px;
+            color: var(--text-variant);
+            opacity: 0.7;
+        }
+
         .message-container {
             display: flex;
             flex-direction: column;
@@ -470,6 +478,7 @@
     let currentReplyData = null;
     let currentEditKey = null;
     let typingTimeout = null;
+    let lastDate = null;
 
     const messagesContainer = document.getElementById('messages');
     const messageForm = document.getElementById('messageForm');
@@ -490,6 +499,20 @@
 
     const userCountDisplay = document.getElementById('userCount');
     const typingStatusDisplay = document.getElementById('typingStatus');
+
+    function getDayLabel(timestamp) {
+        const date = new Date(timestamp);
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+        const dayBeforeYesterday = new Date();
+        dayBeforeYesterday.setDate(today.getDate() - 2);
+
+        if (date.toDateString() === today.toDateString()) return 'Сегодня';
+        if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+        if (date.toDateString() === dayBeforeYesterday.toDateString()) return 'Позавчера';
+        return date.toLocaleDateString();
+    }
 
     if (myNickname) {
         usernameModal.classList.add('hidden');
@@ -530,9 +553,7 @@
 
     messageInput.addEventListener('input', () => {
         if (!myNickname) return;
-        
         typingRef.child(userId).set({ nickname: myNickname, typing: true });
-        
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => {
             typingRef.child(userId).remove();
@@ -542,59 +563,28 @@
     messageForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = messageInput.value.trim();
-        
-        if (!myNickname) return;
-        if (!text) return;
-
+        if (!myNickname || !text) return;
         clearTimeout(typingTimeout);
         typingRef.child(userId).remove();
-
         if (currentEditKey) {
-            messagesRef.child(currentEditKey).update({
-                text: text,
-                edited: true
-            });
+            messagesRef.child(currentEditKey).update({ text: text, edited: true });
             currentEditKey = null;
             editPreview.classList.add('hidden');
         } else {
-            const messageData = {
-                userId: userId,
-                nickname: myNickname,
-                timestamp: Date.now(),
-                read: false,
-                text: text
-            };
-
-            if (currentReplyData) {
-                messageData.replyTo = currentReplyData;
-            }
-
+            const messageData = { userId, nickname: myNickname, timestamp: Date.now(), read: false, text };
+            if (currentReplyData) messageData.replyTo = currentReplyData;
             messagesRef.push(messageData);
             currentReplyData = null;
             replyPreview.classList.add('hidden');
         }
-
         messageInput.value = '';
     });
 
-    usersRef.on('value', (snapshot) => {
-        const count = snapshot.numChildren();
-        userCountDisplay.textContent = `участники: ${count}`;
-    });
-
-    typingRef.on('value', (snapshot) => {
+    usersRef.on('value', (s) => userCountDisplay.textContent = `участники: ${s.numChildren()}`);
+    typingRef.on('value', (s) => {
         const typers = [];
-        snapshot.forEach((childSnapshot) => {
-            if (childSnapshot.key !== userId) {
-                typers.push(childSnapshot.val().nickname);
-            }
-        });
-        
-        if (typers.length > 0) {
-            typingStatusDisplay.textContent = `${typers.join(', ')} печатает...`;
-        } else {
-            typingStatusDisplay.textContent = '';
-        }
+        s.forEach(c => { if (c.key !== userId) typers.push(c.val().nickname); });
+        typingStatusDisplay.textContent = typers.length > 0 ? `${typers.join(', ')} печатает...` : '';
     });
 
     messagesRef.on('child_added', (snapshot) => {
@@ -602,25 +592,23 @@
         const msgKey = snapshot.key;
         if (!data) return;
 
-        if (data.userId !== userId && !data.read) {
-            messagesRef.child(msgKey).update({ read: true });
+        const date = new Date(data.timestamp).toDateString();
+        if (date !== lastDate) {
+            const sep = document.createElement('div');
+            sep.classList.add('date-separator');
+            sep.textContent = getDayLabel(data.timestamp);
+            messagesContainer.appendChild(sep);
+            lastDate = date;
         }
+
+        if (data.userId !== userId && !data.read) messagesRef.child(msgKey).update({ read: true });
 
         const container = document.createElement('div');
         container.classList.add('message-container');
         container.setAttribute('data-key', msgKey);
-
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
+        messageElement.classList.add('message', data.userId === userId ? 'outgoing' : 'incoming');
         
-        if (data.userId === userId) {
-            container.classList.add('outgoing');
-            messageElement.classList.add('outgoing');
-        } else {
-            container.classList.add('incoming');
-            messageElement.classList.add('incoming');
-        }
-
         const authorSpan = document.createElement('span');
         authorSpan.classList.add('author');
         authorSpan.textContent = data.nickname || 'Аноним';
@@ -629,10 +617,7 @@
         if (data.replyTo) {
             const replyDiv = document.createElement('div');
             replyDiv.classList.add('reply-target');
-            replyDiv.innerHTML = `
-                <span class="reply-author">${data.replyTo.nickname}</span>
-                <span class="reply-text">${data.replyTo.text}</span>
-            `;
+            replyDiv.innerHTML = `<span class="reply-author">${data.replyTo.nickname}</span><span class="reply-text">${data.replyTo.text}</span>`;
             messageElement.appendChild(replyDiv);
         }
 
@@ -643,55 +628,40 @@
 
         const footer = document.createElement('div');
         footer.classList.add('message-footer');
-
         if (data.edited) {
-            const editedSpan = document.createElement('span');
-            editedSpan.classList.add('edited-mark');
-            editedSpan.textContent = 'изм.';
-            footer.appendChild(editedSpan);
+            const eS = document.createElement('span');
+            eS.classList.add('edited-mark');
+            eS.textContent = 'изм.';
+            footer.appendChild(eS);
         }
 
         const timeSpan = document.createElement('span');
         timeSpan.classList.add('message-time');
-        const date = new Date(data.timestamp || Date.now());
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        timeSpan.textContent = `${hours}:${minutes}`;
+        timeSpan.textContent = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         footer.appendChild(timeSpan);
 
         if (data.userId === userId) {
-            const statusIcon = document.createElement('div');
-            statusIcon.classList.add('status-icon');
-            if (data.read) {
-                statusIcon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
-            } else {
-                statusIcon.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            }
-            footer.appendChild(statusIcon);
+            const sI = document.createElement('div');
+            sI.classList.add('status-icon');
+            sI.innerHTML = data.read ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>` : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            footer.appendChild(sI);
         }
 
         const menuBtn = document.createElement('button');
         menuBtn.type = 'button';
         menuBtn.classList.add('message-menu-btn');
         menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
-        
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.querySelectorAll('.message-actions').forEach(panel => panel.remove());
-
+            document.querySelectorAll('.message-actions').forEach(p => p.remove());
             const panel = document.createElement('div');
             panel.classList.add('message-actions');
-
-            const replyAction = document.createElement('button');
-            replyAction.type = 'button';
-            replyAction.classList.add('action-item');
-            replyAction.innerHTML = '<span class="material-symbols-outlined">reply</span> Ответить';
-            
-            replyAction.addEventListener('click', () => {
-                currentReplyData = {
-                    nickname: data.nickname || 'Аноним',
-                    text: data.text || ''
-                };
+            const rA = document.createElement('button');
+            rA.type = 'button';
+            rA.classList.add('action-item');
+            rA.innerHTML = '<span class="material-symbols-outlined">reply</span> Ответить';
+            rA.addEventListener('click', () => {
+                currentReplyData = { nickname: data.nickname || 'Аноним', text: data.text || '' };
                 replyPreviewAuthor.textContent = currentReplyData.nickname;
                 replyPreviewText.textContent = currentReplyData.text;
                 replyPreview.classList.remove('hidden');
@@ -700,14 +670,13 @@
                 panel.remove();
                 messageInput.focus();
             });
-            panel.appendChild(replyAction);
-
+            panel.appendChild(rA);
             if (data.userId === userId) {
-                const editAction = document.createElement('button');
-                editAction.type = 'button';
-                editAction.classList.add('action-item');
-                editAction.innerHTML = '<span class="material-symbols-outlined">edit</span> Изменить';
-                editAction.addEventListener('click', () => {
+                const eA = document.createElement('button');
+                eA.type = 'button';
+                eA.classList.add('action-item');
+                eA.innerHTML = '<span class="material-symbols-outlined">edit</span> Изменить';
+                eA.addEventListener('click', () => {
                     currentEditKey = msgKey;
                     messageInput.value = data.text || '';
                     editPreviewText.textContent = data.text || '';
@@ -717,13 +686,12 @@
                     panel.remove();
                     messageInput.focus();
                 });
-                panel.appendChild(editAction);
-
-                const deleteAction = document.createElement('button');
-                deleteAction.type = 'button';
-                deleteAction.classList.add('action-item');
-                deleteAction.innerHTML = '<span class="material-symbols-outlined">delete</span> Удалить';
-                deleteAction.addEventListener('click', () => {
+                panel.appendChild(eA);
+                const dA = document.createElement('button');
+                dA.type = 'button';
+                dA.classList.add('action-item');
+                dA.innerHTML = '<span class="material-symbols-outlined">delete</span> Удалить';
+                dA.addEventListener('click', () => {
                     if (currentEditKey === msgKey) {
                         currentEditKey = null;
                         messageInput.value = '';
@@ -732,15 +700,13 @@
                     messagesRef.child(msgKey).remove();
                     panel.remove();
                 });
-                panel.appendChild(deleteAction);
+                panel.appendChild(dA);
             }
-
             container.appendChild(panel);
         });
 
         footer.appendChild(menuBtn);
         messageElement.appendChild(footer);
-        
         container.appendChild(messageElement);
         messagesContainer.appendChild(container);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -750,40 +716,22 @@
         const data = snapshot.val();
         const msgKey = snapshot.key;
         const container = document.querySelector(`.message-container[data-key="${msgKey}"]`);
-        
         if (container) {
             const textSpan = container.querySelector('.msg-text-content');
-            if (textSpan && data.text) {
-                textSpan.textContent = data.text;
-            }
-            
+            if (textSpan && data.text) textSpan.textContent = data.text;
             const footer = container.querySelector('.message-footer');
             if (footer && data.edited && !footer.querySelector('.edited-mark')) {
-                const editedSpan = document.createElement('span');
-                editedSpan.classList.add('edited-mark');
-                editedSpan.textContent = 'изм.';
-                footer.insertBefore(editedSpan, footer.firstChild);
-            }
-        }
-
-        if (data.userId === userId && data.read) {
-            const allMsgs = document.querySelectorAll('.message.outgoing');
-            const lastMsg = allMsgs[allMsgs.length - 1];
-            if (lastMsg) {
-                const status = lastMsg.querySelector('.status-icon');
-                if (status) {
-                    status.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
-                }
+                const eS = document.createElement('span');
+                eS.classList.add('edited-mark');
+                eS.textContent = 'изм.';
+                footer.insertBefore(eS, footer.firstChild);
             }
         }
     });
 
     messagesRef.on('child_removed', (snapshot) => {
-        const msgKey = snapshot.key;
-        const container = document.querySelector(`.message-container[data-key="${msgKey}"]`);
-        if (container) {
-            container.remove();
-        }
+        const container = document.querySelector(`.message-container[data-key="${snapshot.key}"]`);
+        if (container) container.remove();
     });
 </script>
 
