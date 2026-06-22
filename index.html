@@ -84,6 +84,13 @@
             gap: 8px;
         }
 
+        .message-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            position: relative;
+        }
+
         .message {
             max-width: 75%;
             padding: 10px 16px;
@@ -93,6 +100,7 @@
             word-wrap: break-word;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
         .message .author {
@@ -114,6 +122,100 @@
             color: var(--color-on-primary-container);
             align-self: flex-end;
             border-bottom-right-radius: 4px;
+        }
+
+        .reply-target {
+            background: rgba(0, 0, 0, 0.15);
+            border-left: 3px solid var(--color-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .reply-target .reply-author {
+            font-weight: 500;
+            color: var(--color-primary);
+            display: block;
+            font-size: 11px;
+        }
+
+        .reply-target .reply-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            opacity: 0.8;
+        }
+
+        .message-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            margin-top: 4px;
+            align-self: flex-end;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+
+        .message-menu-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0;
+        }
+
+        .message-menu-btn .material-symbols-outlined {
+            font-size: 16px;
+        }
+
+        .message-menu-btn:hover {
+            opacity: 1;
+        }
+
+        .message-actions {
+            position: absolute;
+            background: var(--bg-surface-variant);
+            border: 1px solid var(--outline);
+            border-radius: 12px;
+            padding: 4px 0;
+            z-index: 5;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            top: 100%;
+        }
+
+        .message-container.incoming .message-actions {
+            left: 16px;
+        }
+
+        .message-container.outgoing .message-actions {
+            right: 16px;
+        }
+
+        .action-item {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            width: 100%;
+            padding: 8px 16px;
+            text-align: left;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-item:hover {
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .message img, .message video {
@@ -167,6 +269,11 @@
             cursor: pointer;
             display: flex;
             align-items: center;
+        }
+
+        #replyPreview {
+            border-left: 4px solid var(--color-primary);
+            margin-bottom: 4px;
         }
 
         .message-form {
@@ -289,6 +396,19 @@
 
     <div id="messages"></div>
 
+    <div id="replyPreview" class="preview-container hidden">
+        <div class="preview-info">
+            <span class="material-symbols-outlined">reply</span>
+            <div>
+                <strong id="replyPreviewAuthor" style="font-size: 12px; color: var(--color-primary); display: block;">Ник</strong>
+                <span id="replyPreviewText" style="font-size: 13px; opacity: 0.8;">Текст</span>
+            </div>
+        </div>
+        <button type="button" id="removeReplyBtn" class="preview-remove">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+
     <div id="filePreview" class="preview-container hidden">
         <div class="preview-info">
             <span class="material-symbols-outlined">attach_file</span>
@@ -342,6 +462,7 @@
     
     let myNickname = localStorage.getItem('tapkogram_nick') || '';
     let selectedFile = null;
+    let currentReplyData = null;
 
     const messagesContainer = document.getElementById('messages');
     const messageForm = document.getElementById('messageForm');
@@ -355,6 +476,11 @@
     const filePreview = document.getElementById('filePreview');
     const previewFilename = document.getElementById('previewFilename');
     const removeFileBtn = document.getElementById('removeFileBtn');
+    
+    const replyPreview = document.getElementById('replyPreview');
+    const replyPreviewAuthor = document.getElementById('replyPreviewAuthor');
+    const replyPreviewText = document.getElementById('replyPreviewText');
+    const removeReplyBtn = document.getElementById('removeReplyBtn');
 
     if (myNickname) {
         usernameModal.classList.add('hidden');
@@ -393,6 +519,15 @@
         selectedFile = null;
         fileInput.value = '';
         filePreview.classList.add('hidden');
+    });
+
+    removeReplyBtn.addEventListener('click', () => {
+        currentReplyData = null;
+        replyPreview.classList.add('hidden');
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.message-actions').forEach(panel => panel.remove());
     });
 
     messageForm.addEventListener('submit', async (e) => {
@@ -437,12 +572,18 @@
             messageData.fileType = fileType;
         }
 
+        if (currentReplyData) {
+            messageData.replyTo = currentReplyData;
+        }
+
         messagesRef.push(messageData);
 
         messageInput.value = '';
         selectedFile = null;
+        currentReplyData = null;
         fileInput.value = '';
         filePreview.classList.add('hidden');
+        replyPreview.classList.add('hidden');
         attachBtn.style.opacity = '1';
     });
 
@@ -450,12 +591,17 @@
         const data = snapshot.val();
         if (!data) return;
 
+        const container = document.createElement('div');
+        container.classList.add('message-container');
+
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
         
         if (data.userId === userId) {
+            container.classList.add('outgoing');
             messageElement.classList.add('outgoing');
         } else {
+            container.classList.add('incoming');
             messageElement.classList.add('incoming');
         }
 
@@ -463,6 +609,16 @@
         authorSpan.classList.add('author');
         authorSpan.textContent = data.nickname || 'Аноним';
         messageElement.appendChild(authorSpan);
+
+        if (data.replyTo) {
+            const replyDiv = document.createElement('div');
+            replyDiv.classList.add('reply-target');
+            replyDiv.innerHTML = `
+                <span class="reply-author">${data.replyTo.nickname}</span>
+                <span class="reply-text">${data.replyTo.text || 'Файл'}</span>
+            `;
+            messageElement.appendChild(replyDiv);
+        }
 
         if (data.text) {
             const textSpan = document.createElement('span');
@@ -490,8 +646,56 @@
                 messageElement.appendChild(link);
             }
         }
+
+        const footer = document.createElement('div');
+        footer.classList.add('message-footer');
+
+        const timeSpan = document.createElement('span');
+        timeSpan.classList.add('message-time');
+        const date = new Date(data.timestamp || Date.now());
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        timeSpan.textContent = `${hours}:${minutes}`;
+        footer.appendChild(timeSpan);
+
+        const menuBtn = document.createElement('button');
+        menuBtn.type = 'button';
+        menuBtn.classList.add('message-menu-btn');
+        menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
         
-        messagesContainer.appendChild(messageElement);
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.message-actions').forEach(panel => panel.remove());
+
+            const panel = document.createElement('div');
+            panel.classList.add('message-actions');
+
+            const replyAction = document.createElement('button');
+            replyAction.type = 'button';
+            replyAction.classList.add('action-item');
+            replyAction.innerHTML = '<span class="material-symbols-outlined">reply</span> Ответить';
+            
+            replyAction.addEventListener('click', () => {
+                currentReplyData = {
+                    nickname: data.nickname || 'Аноним',
+                    text: data.text || (data.fileUrl ? 'Файл' : '')
+                };
+                replyPreviewAuthor.textContent = currentReplyData.nickname;
+                replyPreviewText.textContent = currentReplyData.text || 'Файл';
+                replyPreview.classList.remove('hidden');
+                panel.remove();
+                messageInput.focus();
+            });
+
+            panel.appendChild(replyAction);
+            container.appendChild(panel);
+        });
+
+        footer.appendChild(menuBtn);
+        messageElement.appendChild(footer);
+        
+        container.appendChild(messageElement);
+        messagesContainer.appendChild(container);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     });
 </script>
