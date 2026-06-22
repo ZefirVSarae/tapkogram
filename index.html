@@ -734,73 +734,17 @@
     </form>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
     const EMOJI_LIST = [
-        "😀",
-        "😂",
-        "🤣",
-        "😭",
-        "😁",
-        "😅",
-        "😄",
-        "🥰",
-        "😚",
-        "😍",
-        "🥳",
-        "🤩",
-        "🤤",
-        "🤪",
-        "😛",
-        "😊",
-        "🥲",
-        "🙂",
-        "🤐",
-        "🥺",
-        "😐",
-        "🤔",
-        "🥱",
-        "😱",
-        "🤨",
-        "😒",
-        "🙄",
-        "😤",
-        "🤬",
-        "😡",
-        "😓",
-        "😳",
-        "🤯",
-        "🥵",
-        "🥶",
-        "🤮",
-        "🤠",
-        "🤑",
-        "🤓",
-        "🤒",
-        "🤡",
-        "💩",
-        "❤️",
-        "⭐"
+        "😀", "😂", "🤣", "😭", "😁", "😅", "😄", "🥰", "😚", "😍", "🥳", "🤩", "🤤", "🤪", "😛", "😊", "🥲", "🙂", "🤐", "🥺", "😐", "🤔", "🥱", "😱", "🤨", "😒", "🙄", "😤", "🤬", "😡", "😓", "😳", "🤯", "🥵", "🥶", "🤮", "🤠", "🤑", "🤓", "🤒", "🤡", "💩", "❤️", "⭐"
     ];
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCgrN0wvT9hMaKjm33jjCVMbxNcLPEvYOU",
-        authDomain: "prmesenger.firebaseapp.com",
-        databaseURL: "https://prmesenger-default-rtdb.firebaseio.com",
-        projectId: "prmesenger",
-        storageBucket: "prmesenger.firebasestorage.app",
-        messagingSenderId: "278915268758",
-        appId: "1:278915268758:web:8895895a983bb06a9b02b7",
-        measurementId: "G-H58JHCGP91"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const messagesRef = db.ref('messages');
-    const usersRef = db.ref('users');
-    const typingRef = db.ref('typing');
+    const supabase = supabase.createClient(
+        "https://nsanzuknmpxjnusecuhz.supabase.co",
+        "sb_publishable_SQk8tO5LvEKeG0c3Ifl2MQ_TGfnTW8I"
+    );
 
     let userId = localStorage.getItem('tapkogram_uid');
     if (!userId) {
@@ -808,10 +752,7 @@
         localStorage.setItem('tapkogram_uid', userId);
     }
     
-    let myNickname = localStorage.getItem('tapkogram_nick');
-    if (!myNickname) {
-        myNickname = '';
-    }
+    let myNickname = localStorage.getItem('tapkogram_nick') || '';
 
     let currentReplyData = null;
     let currentEditKey = null;
@@ -846,23 +787,15 @@
         const dayBeforeYesterday = new Date();
         dayBeforeYesterday.setDate(today.getDate() - 2);
 
-        if (date.toDateString() === today.toDateString()) {
-            return 'Сегодня';
-        }
-        if (date.toDateString() === yesterday.toDateString()) {
-            return 'Вчера';
-        }
-        if (date.toDateString() === dayBeforeYesterday.toDateString()) {
-            return 'Позавчера';
-        }
+        if (date.toDateString() === today.toDateString()) return 'Сегодня';
+        if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+        if (date.toDateString() === dayBeforeYesterday.toDateString()) return 'Позавчера';
         return date.toLocaleDateString();
     };
 
     const updateReactions = (msgKey, data, container) => {
         container.innerHTML = '';
-        if (!data.reactions) {
-            return;
-        }
+        if (!data.reactions) return;
         
         const counts = {};
         let myReaction = null;
@@ -871,46 +804,36 @@
         for (let i = 0; i < keys.length; i++) {
             const uid = keys[i];
             const reaction = data.reactions[uid];
-            if (!counts[reaction]) {
-                counts[reaction] = 0;
-            }
+            if (!counts[reaction]) counts[reaction] = 0;
             counts[reaction] = counts[reaction] + 1;
-            if (uid === userId) {
-                myReaction = reaction;
-            }
+            if (uid === userId) myReaction = reaction;
         }
         
         const uniqueReactions = Object.keys(counts);
-        
         for (let j = 0; j < uniqueReactions.length; j++) {
             const currentReaction = uniqueReactions[j];
-            const currentCount = counts[currentReaction];
-            
             const pill = document.createElement('div');
             pill.classList.add('reaction-pill');
-            
-            if (myReaction === currentReaction) {
-                pill.classList.add('active');
-            }
+            if (myReaction === currentReaction) pill.classList.add('active');
             
             const emojiSpan = document.createElement('span');
             emojiSpan.textContent = currentReaction;
-            
             const countSpan = document.createElement('span');
-            countSpan.textContent = currentCount;
+            countSpan.textContent = counts[currentReaction];
             
             pill.appendChild(emojiSpan);
             pill.appendChild(countSpan);
             
-            pill.addEventListener('click', (e) => {
+            pill.addEventListener('click', async (e) => {
                 e.stopPropagation();
+                let newReactions = { ...data.reactions };
                 if (myReaction === currentReaction) {
-                    messagesRef.child(msgKey).child('reactions').child(userId).remove();
+                    delete newReactions[userId];
                 } else {
-                    messagesRef.child(msgKey).child('reactions').child(userId).set(currentReaction);
+                    newReactions[userId] = currentReaction;
                 }
+                await supabase.from('messages').update({ reactions: newReactions }).eq('id', msgKey);
             });
-            
             container.appendChild(pill);
         }
     };
@@ -918,7 +841,7 @@
     if (myNickname !== '') {
         usernameModal.classList.add('hidden');
         currentNicknameDisplay.textContent = myNickname;
-        usersRef.child(userId).set({ nickname: myNickname });
+        supabase.from('users').upsert({ id: userId, nickname: myNickname });
     }
 
     saveNicknameBtn.addEventListener('click', () => {
@@ -928,7 +851,7 @@
             localStorage.setItem('tapkogram_nick', myNickname);
             currentNicknameDisplay.textContent = myNickname;
             usernameModal.classList.add('hidden');
-            usersRef.child(userId).set({ nickname: myNickname });
+            supabase.from('users').upsert({ id: userId, nickname: myNickname });
         }
     });
 
@@ -949,86 +872,38 @@
     });
 
     document.addEventListener('click', () => {
-        const panels = document.querySelectorAll('.message-actions');
-        for (let i = 0; i < panels.length; i++) {
-            panels[i].remove();
-        }
-        const pickers = document.querySelectorAll('.emoji-picker');
-        for (let i = 0; i < pickers.length; i++) {
-            pickers[i].remove();
-        }
+        document.querySelectorAll('.message-actions, .emoji-picker').forEach(el => el.remove());
     });
 
     messageInput.addEventListener('input', () => {
-        if (myNickname === '') {
-            return;
-        }
-        typingRef.child(userId).set({ nickname: myNickname, typing: true });
+        if (myNickname === '') return;
+        supabase.from('typing').upsert({ id: userId, nickname: myNickname, timestamp: Date.now() });
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => {
-            typingRef.child(userId).remove();
+            supabase.from('typing').delete().eq('id', userId);
         }, 2000);
     });
 
     messageForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = messageInput.value.trim();
-        if (myNickname === '') {
-            return;
-        }
-        if (text === '') {
-            return;
-        }
-        clearTimeout(typingTimeout);
-        typingRef.child(userId).remove();
+        if (myNickname === '' || text === '') return;
         
         if (currentEditKey !== null) {
-            messagesRef.child(currentEditKey).update({ text: text, edited: true });
+            await supabase.from('messages').update({ text: text, edited: true }).eq('id', currentEditKey);
             currentEditKey = null;
             editPreview.classList.add('hidden');
         } else {
-            const messageData = { 
-                userId: userId, 
-                nickname: myNickname, 
-                timestamp: Date.now(), 
-                read: false, 
-                text: text 
-            };
-            if (currentReplyData !== null) {
-                messageData.replyTo = currentReplyData;
-            }
-            messagesRef.push(messageData);
+            await supabase.from('messages').insert({ 
+                user_id: userId, nickname: myNickname, timestamp: Date.now(), read: false, text: text, reply_to: currentReplyData
+            });
             currentReplyData = null;
             replyPreview.classList.add('hidden');
         }
         messageInput.value = '';
     });
 
-    usersRef.on('value', (s) => {
-        userCountDisplay.textContent = 'участники: ' + s.numChildren();
-    });
-
-    typingRef.on('value', (s) => {
-        const typers = [];
-        s.forEach((c) => { 
-            if (c.key !== userId) {
-                typers.push(c.val().nickname); 
-            }
-        });
-        if (typers.length > 0) {
-            typingStatusDisplay.textContent = typers.join(', ') + ' печатает...';
-        } else {
-            typingStatusDisplay.textContent = '';
-        }
-    });
-
-    messagesRef.on('child_added', (snapshot) => {
-        const data = snapshot.val();
-        const msgKey = snapshot.key;
-        if (!data) {
-            return;
-        }
-
+    const renderMessage = (data) => {
         const dateString = new Date(data.timestamp).toDateString();
         if (dateString !== lastDate) {
             const sep = document.createElement('div');
@@ -1038,273 +913,96 @@
             lastDate = dateString;
         }
 
-        if (data.userId !== userId && data.read === false) {
-            messagesRef.child(msgKey).update({ read: true });
-        }
-
         const container = document.createElement('div');
         container.classList.add('message-container');
-        container.setAttribute('data-key', msgKey);
+        container.setAttribute('data-key', data.id);
         
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
-        if (data.userId === userId) {
-            messageElement.classList.add('outgoing');
-            container.classList.add('outgoing');
-        } else {
-            messageElement.classList.add('incoming');
-            container.classList.add('incoming');
-        }
+        messageElement.classList.add('message', data.user_id === userId ? 'outgoing' : 'incoming');
         
         const authorSpan = document.createElement('span');
         authorSpan.classList.add('author');
-        if (data.nickname) {
-            authorSpan.textContent = data.nickname;
-        } else {
-            authorSpan.textContent = 'Аноним';
-        }
+        authorSpan.textContent = data.nickname || 'Аноним';
         messageElement.appendChild(authorSpan);
 
-        if (data.replyTo) {
+        if (data.reply_to) {
             const replyDiv = document.createElement('div');
             replyDiv.classList.add('reply-target');
-            
-            const repAuth = document.createElement('span');
-            repAuth.classList.add('reply-author');
-            repAuth.textContent = data.replyTo.nickname;
-            replyDiv.appendChild(repAuth);
-            
-            const repText = document.createElement('span');
-            repText.classList.add('reply-text');
-            repText.textContent = data.replyTo.text;
-            replyDiv.appendChild(repText);
-            
+            replyDiv.innerHTML = `<span class="reply-author">${data.reply_to.nickname}</span><span class="reply-text">${data.reply_to.text}</span>`;
             messageElement.appendChild(replyDiv);
         }
 
         const textSpan = document.createElement('span');
         textSpan.classList.add('msg-text-content');
-        if (data.text) {
-            textSpan.textContent = data.text;
-        } else {
-            textSpan.textContent = '';
-        }
+        textSpan.textContent = data.text;
         messageElement.appendChild(textSpan);
 
         const reactionsDiv = document.createElement('div');
         reactionsDiv.classList.add('reactions-container');
         messageElement.appendChild(reactionsDiv);
-        
-        updateReactions(msgKey, data, reactionsDiv);
+        updateReactions(data.id, data, reactionsDiv);
 
         const footer = document.createElement('div');
         footer.classList.add('message-footer');
+        if (data.edited) footer.innerHTML += '<span class="edited-mark">изм.</span>';
         
-        if (data.edited === true) {
-            const eS = document.createElement('span');
-            eS.classList.add('edited-mark');
-            eS.textContent = 'изм.';
-            footer.appendChild(eS);
-        }
-
         const timeSpan = document.createElement('span');
         timeSpan.classList.add('message-time');
-        const timeObj = new Date(data.timestamp);
-        timeSpan.textContent = timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        timeSpan.textContent = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         footer.appendChild(timeSpan);
 
-        if (data.userId === userId) {
-            const sI = document.createElement('div');
-            sI.classList.add('status-icon');
-            
-            const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svgEl.setAttribute("width", "14");
-            svgEl.setAttribute("height", "14");
-            svgEl.setAttribute("viewBox", "0 0 24 24");
-            svgEl.setAttribute("fill", "none");
-            svgEl.setAttribute("stroke", "currentColor");
-            svgEl.setAttribute("stroke-width", "3");
-            svgEl.setAttribute("stroke-linecap", "round");
-            svgEl.setAttribute("stroke-linejoin", "round");
-
-            if (data.read === true) {
-                const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                pathEl.setAttribute("d", "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z");
-                const circleEl = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                circleEl.setAttribute("cx", "12");
-                circleEl.setAttribute("cy", "12");
-                circleEl.setAttribute("r", "3");
-                svgEl.appendChild(pathEl);
-                svgEl.appendChild(circleEl);
-            } else {
-                const polyEl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-                polyEl.setAttribute("points", "20 6 9 17 4 12");
-                svgEl.appendChild(polyEl);
-            }
-            sI.appendChild(svgEl);
-            footer.appendChild(sI);
-        }
-
         const menuBtn = document.createElement('button');
-        menuBtn.type = 'button';
-        menuBtn.classList.add('message-menu-btn');
-        
-        const menuIcon = document.createElement('span');
-        menuIcon.classList.add('material-symbols-outlined');
-        menuIcon.textContent = 'more_vert';
-        menuBtn.appendChild(menuIcon);
+        menuBtn.className = 'message-menu-btn';
+        menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
         
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const allPanels = document.querySelectorAll('.message-actions');
-            for (let i = 0; i < allPanels.length; i++) {
-                allPanels[i].remove();
-            }
-            const allPickers = document.querySelectorAll('.emoji-picker');
-            for (let i = 0; i < allPickers.length; i++) {
-                allPickers[i].remove();
-            }
-            
+            document.querySelectorAll('.message-actions').forEach(el => el.remove());
             const panel = document.createElement('div');
             panel.classList.add('message-actions');
             
             const reactA = document.createElement('button');
-            reactA.type = 'button';
-            reactA.classList.add('action-item');
-            
-            const reactIco = document.createElement('span');
-            reactIco.classList.add('material-symbols-outlined');
-            reactIco.textContent = 'sentiment_satisfied';
-            reactA.appendChild(reactIco);
-            
-            const reactTxt = document.createTextNode(' Реакции');
-            reactA.appendChild(reactTxt);
-            
-            reactA.addEventListener('click', (ev) => {
+            reactA.className = 'action-item';
+            reactA.innerHTML = '<span class="material-symbols-outlined">sentiment_satisfied</span> Реакции';
+            reactA.onclick = (ev) => {
                 ev.stopPropagation();
                 panel.remove();
-                
-                const existingPickers = document.querySelectorAll('.emoji-picker');
-                for (let k = 0; k < existingPickers.length; k++) {
-                    existingPickers[k].remove();
-                }
-                
                 const picker = document.createElement('div');
-                picker.classList.add('emoji-picker');
-                
-                picker.addEventListener('click', (pickerEvent) => {
-                    pickerEvent.stopPropagation();
-                });
-                
-                for (let m = 0; m < EMOJI_LIST.length; m++) {
-                    const emBtn = document.createElement('button');
-                    emBtn.type = 'button';
-                    emBtn.classList.add('emoji-btn');
-                    emBtn.textContent = EMOJI_LIST[m];
-                    
-                    emBtn.addEventListener('click', () => {
-                        let myReaction = null;
-                        if (data.reactions && data.reactions[userId]) {
-                            myReaction = data.reactions[userId];
-                        }
-                        if (myReaction === EMOJI_LIST[m]) {
-                            messagesRef.child(msgKey).child('reactions').child(userId).remove();
-                        } else {
-                            messagesRef.child(msgKey).child('reactions').child(userId).set(EMOJI_LIST[m]);
-                        }
+                picker.className = 'emoji-picker';
+                EMOJI_LIST.forEach(em => {
+                    const btn = document.createElement('button');
+                    btn.className = 'emoji-btn';
+                    btn.textContent = em;
+                    btn.onclick = async () => {
+                        let rs = data.reactions || {};
+                        rs[userId] = em;
+                        await supabase.from('messages').update({ reactions: rs }).eq('id', data.id);
                         picker.remove();
-                    });
-                    
-                    picker.appendChild(emBtn);
-                }
-                
+                    };
+                    picker.appendChild(btn);
+                });
                 container.appendChild(picker);
-            });
+            };
             panel.appendChild(reactA);
 
             const rA = document.createElement('button');
-            rA.type = 'button';
-            rA.classList.add('action-item');
-            
-            const rIco = document.createElement('span');
-            rIco.classList.add('material-symbols-outlined');
-            rIco.textContent = 'reply';
-            rA.appendChild(rIco);
-            
-            const rTxt = document.createTextNode(' Ответить');
-            rA.appendChild(rTxt);
-            
-            rA.addEventListener('click', () => {
-                let rNick = 'Аноним';
-                if (data.nickname) {
-                    rNick = data.nickname;
-                }
-                let rText = '';
-                if (data.text) {
-                    rText = data.text;
-                }
-                currentReplyData = { nickname: rNick, text: rText };
-                replyPreviewAuthor.textContent = currentReplyData.nickname;
-                replyPreviewText.textContent = currentReplyData.text;
+            rA.className = 'action-item';
+            rA.innerHTML = '<span class="material-symbols-outlined">reply</span> Ответить';
+            rA.onclick = () => {
+                currentReplyData = { nickname: data.nickname, text: data.text };
+                replyPreviewAuthor.textContent = data.nickname;
+                replyPreviewText.textContent = data.text;
                 replyPreview.classList.remove('hidden');
-                currentEditKey = null;
-                editPreview.classList.add('hidden');
                 panel.remove();
                 messageInput.focus();
-            });
+            };
             panel.appendChild(rA);
             
-            if (data.userId === userId) {
-                const eA = document.createElement('button');
-                eA.type = 'button';
-                eA.classList.add('action-item');
-                
-                const eIco = document.createElement('span');
-                eIco.classList.add('material-symbols-outlined');
-                eIco.textContent = 'edit';
-                eA.appendChild(eIco);
-                
-                const eTxt = document.createTextNode(' Изменить');
-                eA.appendChild(eTxt);
-                
-                eA.addEventListener('click', () => {
-                    currentEditKey = msgKey;
-                    if (data.text) {
-                        messageInput.value = data.text;
-                        editPreviewText.textContent = data.text;
-                    } else {
-                        messageInput.value = '';
-                        editPreviewText.textContent = '';
-                    }
-                    editPreview.classList.remove('hidden');
-                    currentReplyData = null;
-                    replyPreview.classList.add('hidden');
-                    panel.remove();
-                    messageInput.focus();
-                });
-                panel.appendChild(eA);
-                
+            if (data.user_id === userId) {
                 const dA = document.createElement('button');
-                dA.type = 'button';
-                dA.classList.add('action-item');
-                
-                const dIco = document.createElement('span');
-                dIco.classList.add('material-symbols-outlined');
-                dIco.textContent = 'delete';
-                dA.appendChild(dIco);
-                
-                const dTxt = document.createTextNode(' Удалить');
-                dA.appendChild(dTxt);
-                
-                dA.addEventListener('click', () => {
-                    if (currentEditKey === msgKey) {
-                        currentEditKey = null;
-                        messageInput.value = '';
-                        editPreview.classList.add('hidden');
-                    }
-                    messagesRef.child(msgKey).remove();
-                    panel.remove();
-                });
+                dA.className = 'action-item';
+                dA.innerHTML = '<span class="material-symbols-outlined">delete</span> Удалить';
+                dA.onclick = () => supabase.from('messages').delete().eq('id', data.id);
                 panel.appendChild(dA);
             }
             container.appendChild(panel);
@@ -1315,65 +1013,30 @@
         container.appendChild(messageElement);
         messagesContainer.appendChild(container);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    });
+    };
 
-    messagesRef.on('child_changed', (snapshot) => {
-        const data = snapshot.val();
-        const msgKey = snapshot.key;
-        const container = document.querySelector('.message-container[data-key="' + msgKey + '"]');
-        
-        if (container) {
-            const textSpan = container.querySelector('.msg-text-content');
-            if (textSpan) {
-                if (data.text) {
-                    textSpan.textContent = data.text;
-                }
-            }
-            
-            const footer = container.querySelector('.message-footer');
-            if (footer) {
-                if (data.edited === true) {
-                    const existingMark = footer.querySelector('.edited-mark');
-                    if (!existingMark) {
-                        const eS = document.createElement('span');
-                        eS.classList.add('edited-mark');
-                        eS.textContent = 'изм.';
-                        footer.insertBefore(eS, footer.firstChild);
-                    }
-                }
-            }
-            
-            const reactContainer = container.querySelector('.reactions-container');
-            if (reactContainer) {
-                updateReactions(msgKey, data, reactContainer);
-            }
+    const loadMessages = async () => {
+        const { data } = await supabase.from('messages').select('*').order('timestamp', { ascending: true });
+        data.forEach(renderMessage);
+    };
+
+    loadMessages();
+
+    supabase.channel('public:messages').on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
+        if (payload.eventType === 'INSERT') renderMessage(payload.new);
+        if (payload.eventType === 'DELETE') document.querySelector(`[data-key="${payload.old.id}"]`)?.remove();
+        if (payload.eventType === 'UPDATE') {
+            const el = document.querySelector(`[data-key="${payload.new.id}"]`);
+            if (el) el.outerHTML = '', renderMessage(payload.new);
         }
-    });
+    }).subscribe();
 
-    messagesRef.on('child_removed', (snapshot) => {
-        const msgKey = snapshot.key;
-        const container = document.querySelector('.message-container[data-key="' + msgKey + '"]');
-        if (container) {
-            container.remove();
-        }
-    });
-
-    const forceLayoutCalculationOne = 1;
-    const forceLayoutCalculationTwo = 2;
-    const forceLayoutCalculationThree = 3;
-    const forceLayoutCalculationFour = 4;
-    const forceLayoutCalculationFive = 5;
-    
-    if (forceLayoutCalculationOne === 999) {
-        currentEditKey = null;
-    }
-    if (forceLayoutCalculationTwo === 999) {
-        currentReplyData = null;
-    }
-    if (forceLayoutCalculationThree === 999) {
-        lastDate = null;
-    }
+    supabase.channel('public:typing').on('postgres_changes', { event: '*', schema: 'public', table: 'typing' }, () => {
+        supabase.from('typing').select('*').then(({ data }) => {
+            const active = data.filter(u => u.id !== userId && Date.now() - u.timestamp < 3000).map(u => u.nickname);
+            typingStatusDisplay.textContent = active.length ? active.join(', ') + ' печатает...' : '';
+        });
+    }).subscribe();
 </script>
-
 </body>
 </html>
