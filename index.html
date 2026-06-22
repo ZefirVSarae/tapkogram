@@ -9,10 +9,24 @@
     <style>
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            margin-top: 0px;
+            margin-right: 0px;
+            margin-bottom: 0px;
+            margin-left: 0px;
+            padding-top: 0px;
+            padding-right: 0px;
+            padding-bottom: 0px;
+            padding-left: 0px;
             font-family: 'Roboto', sans-serif;
             -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
         :root {
@@ -33,9 +47,16 @@
             height: 100%;
             height: -webkit-fill-available;
             background-color: var(--bg-main);
-            overflow: hidden;
-            margin: 0;
-            padding: 0;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            margin-top: 0px;
+            margin-right: 0px;
+            margin-bottom: 0px;
+            margin-left: 0px;
+            padding-top: 0px;
+            padding-right: 0px;
+            padding-bottom: 0px;
+            padding-left: 0px;
         }
 
         body {
@@ -43,16 +64,23 @@
             height: 100%;
             height: -webkit-fill-available;
             background-color: var(--bg-main);
-            overflow: hidden;
-            margin: 0;
-            padding: 0;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            margin-top: 0px;
+            margin-right: 0px;
+            margin-bottom: 0px;
+            margin-left: 0px;
+            padding-top: 0px;
+            padding-right: 0px;
+            padding-bottom: 0px;
+            padding-left: 0px;
             color: var(--text-main);
             display: flex;
             flex-direction: column;
         }
 
         #app {
-            flex: 1;
+            flex: 1 1 0%;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -65,8 +93,13 @@
             background-color: var(--bg-surface);
             display: flex;
             align-items: center;
-            padding: 0 16px;
-            border-bottom: 1px solid var(--bg-surface-variant);
+            padding-top: 0px;
+            padding-right: 16px;
+            padding-bottom: 0px;
+            padding-left: 16px;
+            border-bottom-width: 1px;
+            border-bottom-style: solid;
+            border-bottom-color: var(--bg-surface-variant);
             justify-content: space-between;
             flex-shrink: 0;
         }
@@ -99,24 +132,38 @@
             font-size: 14px;
             color: var(--color-primary);
             cursor: pointer;
-            background: var(--bg-surface-variant);
-            padding: 6px 12px;
-            border-radius: 16px;
+            background-color: var(--bg-surface-variant);
+            background-image: none;
+            padding-top: 6px;
+            padding-right: 12px;
+            padding-bottom: 6px;
+            padding-left: 12px;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            border-bottom-right-radius: 16px;
+            border-bottom-left-radius: 16px;
         }
 
         #messages {
-            flex: 1;
+            flex: 1 1 0%;
             overflow-y: auto;
-            padding: 16px;
+            overflow-x: hidden;
+            padding-top: 16px;
+            padding-right: 16px;
+            padding-bottom: 16px;
+            padding-left: 16px;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            min-height: 0;
+            min-height: 0px;
         }
 
         .date-separator {
             text-align: center;
-            padding: 10px 0;
+            padding-top: 10px;
+            padding-right: 0px;
+            padding-bottom: 10px;
+            padding-left: 0px;
             font-size: 12px;
             color: var(--text-variant);
             opacity: 0.7;
@@ -131,8 +178,14 @@
 
         .message {
             max-width: 75%;
-            padding: 10px 16px;
-            border-radius: 24px;
+            padding-top: 10px;
+            padding-right: 16px;
+            padding-bottom: 10px;
+            padding-left: 16px;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            border-bottom-right-radius: 24px;
+            border-bottom-left-radius: 24px;
             font-size: 16px;
             line-height: 1.4;
             word-wrap: break-word;
@@ -163,10 +216,18 @@
         }
 
         .reply-target {
-            background: rgba(0, 0, 0, 0.15);
-            border-left: 3px solid var(--color-primary);
-            padding: 4px 8px;
-            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.15);
+            border-left-width: 3px;
+            border-left-style: solid;
+            border-left-color: var(--color-primary);
+            padding-top: 4px;
+            padding-right: 8px;
+            padding-bottom: 4px;
+            padding-left: 8px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
+            border-bottom-left-radius: 4px;
             margin-bottom: 6px;
             font-size: 13px;
         }
@@ -180,7 +241,8 @@
 
         .reply-target .reply-text {
             white-space: nowrap;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: hidden;
             text-overflow: ellipsis;
             display: block;
             opacity: 0.8;
@@ -198,28 +260,64 @@
             display: flex;
             align-items: center;
             gap: 4px;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--bg-surface-variant);
-            border-radius: 12px;
-            padding: 4px 8px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-top-width: 1px;
+            border-top-style: solid;
+            border-top-color: var(--bg-surface-variant);
+            border-right-width: 1px;
+            border-right-style: solid;
+            border-right-color: var(--bg-surface-variant);
+            border-bottom-width: 1px;
+            border-bottom-style: solid;
+            border-bottom-color: var(--bg-surface-variant);
+            border-left-width: 1px;
+            border-left-style: solid;
+            border-left-color: var(--bg-surface-variant);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+            border-bottom-left-radius: 12px;
+            padding-top: 4px;
+            padding-right: 8px;
+            padding-bottom: 4px;
+            padding-left: 8px;
             font-size: 12px;
             cursor: pointer;
-            user-select: none;
             transition: all 0.2s;
         }
 
         .reaction-pill.active {
-            background: var(--color-primary-container);
-            border-color: var(--color-primary);
+            background-color: var(--color-primary-container);
+            border-top-color: var(--color-primary);
+            border-right-color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+            border-left-color: var(--color-primary);
             color: var(--color-on-primary-container);
         }
 
         .emoji-picker {
             position: absolute;
-            background: var(--bg-surface-variant);
-            border: 1px solid var(--outline);
-            border-radius: 12px;
-            padding: 8px;
+            background-color: var(--bg-surface-variant);
+            border-top-width: 1px;
+            border-top-style: solid;
+            border-top-color: var(--outline);
+            border-right-width: 1px;
+            border-right-style: solid;
+            border-right-color: var(--outline);
+            border-bottom-width: 1px;
+            border-bottom-style: solid;
+            border-bottom-color: var(--outline);
+            border-left-width: 1px;
+            border-left-style: solid;
+            border-left-color: var(--outline);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+            border-bottom-left-radius: 12px;
+            padding-top: 8px;
+            padding-right: 8px;
+            padding-bottom: 8px;
+            padding-left: 8px;
             display: grid;
             grid-template-columns: repeat(6, 1fr);
             gap: 6px;
@@ -227,6 +325,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
             max-height: 220px;
             overflow-y: auto;
+            overflow-x: hidden;
             top: 100%;
         }
 
@@ -239,12 +338,22 @@
         }
 
         .emoji-btn {
-            background: none;
-            border: none;
+            background-color: transparent;
+            background-image: none;
+            border-top-style: none;
+            border-right-style: none;
+            border-bottom-style: none;
+            border-left-style: none;
             font-size: 24px;
             cursor: pointer;
-            padding: 4px;
-            border-radius: 8px;
+            padding-top: 4px;
+            padding-right: 4px;
+            padding-bottom: 4px;
+            padding-left: 4px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            border-bottom-left-radius: 8px;
             transition: background 0.2s;
             display: flex;
             justify-content: center;
@@ -252,7 +361,7 @@
         }
 
         .emoji-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.1);
         }
 
         .message-footer {
@@ -276,14 +385,21 @@
         }
 
         .message-menu-btn {
-            background: none;
-            border: none;
+            background-color: transparent;
+            background-image: none;
+            border-top-style: none;
+            border-right-style: none;
+            border-bottom-style: none;
+            border-left-style: none;
             color: inherit;
             opacity: 0.6;
             cursor: pointer;
             display: flex;
             align-items: center;
-            padding: 0;
+            padding-top: 0px;
+            padding-right: 0px;
+            padding-bottom: 0px;
+            padding-left: 0px;
         }
 
         .message-menu-btn .material-symbols-outlined {
@@ -296,10 +412,27 @@
 
         .message-actions {
             position: absolute;
-            background: var(--bg-surface-variant);
-            border: 1px solid var(--outline);
-            border-radius: 12px;
-            padding: 4px 0;
+            background-color: var(--bg-surface-variant);
+            border-top-width: 1px;
+            border-top-style: solid;
+            border-top-color: var(--outline);
+            border-right-width: 1px;
+            border-right-style: solid;
+            border-right-color: var(--outline);
+            border-bottom-width: 1px;
+            border-bottom-style: solid;
+            border-bottom-color: var(--outline);
+            border-left-width: 1px;
+            border-left-style: solid;
+            border-left-color: var(--outline);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+            border-bottom-left-radius: 12px;
+            padding-top: 4px;
+            padding-right: 0px;
+            padding-bottom: 4px;
+            padding-left: 0px;
             z-index: 5;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             top: 100%;
@@ -314,11 +447,18 @@
         }
 
         .action-item {
-            background: none;
-            border: none;
+            background-color: transparent;
+            background-image: none;
+            border-top-style: none;
+            border-right-style: none;
+            border-bottom-style: none;
+            border-left-style: none;
             color: var(--text-main);
             width: 100%;
-            padding: 8px 16px;
+            padding-top: 8px;
+            padding-right: 16px;
+            padding-bottom: 8px;
+            padding-left: 16px;
             text-align: left;
             font-size: 14px;
             cursor: pointer;
@@ -328,17 +468,26 @@
         }
 
         .action-item:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
         .preview-container {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: var(--bg-surface-variant);
-            padding: 8px 16px;
-            margin: 0 16px;
-            border-radius: 12px;
+            background-color: var(--bg-surface-variant);
+            padding-top: 8px;
+            padding-right: 16px;
+            padding-bottom: 8px;
+            padding-left: 16px;
+            margin-top: 0px;
+            margin-right: 16px;
+            margin-bottom: 0px;
+            margin-left: 16px;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+            border-bottom-left-radius: 12px;
             gap: 8px;
             flex-shrink: 0;
         }
@@ -347,20 +496,26 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: hidden;
             font-size: 14px;
             color: var(--text-main);
         }
 
         .preview-info span {
             white-space: nowrap;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: hidden;
             text-overflow: ellipsis;
         }
 
         .preview-remove {
-            background: none;
-            border: none;
+            background-color: transparent;
+            background-image: none;
+            border-top-style: none;
+            border-right-style: none;
+            border-bottom-style: none;
+            border-left-style: none;
             color: var(--color-primary);
             cursor: pointer;
             display: flex;
@@ -368,17 +523,24 @@
         }
 
         #replyPreview {
-            border-left: 4px solid var(--color-primary);
+            border-left-width: 4px;
+            border-left-style: solid;
+            border-left-color: var(--color-primary);
             margin-bottom: 4px;
         }
 
         #editPreview {
-            border-left: 4px solid var(--color-primary);
+            border-left-width: 4px;
+            border-left-style: solid;
+            border-left-color: var(--color-primary);
             margin-bottom: 4px;
         }
 
         .message-form {
-            padding: 16px;
+            padding-top: 16px;
+            padding-right: 16px;
+            padding-bottom: 16px;
+            padding-left: 16px;
             display: flex;
             gap: 8px;
             align-items: center;
@@ -387,7 +549,7 @@
         }
 
         .input-container {
-            flex: 1;
+            flex: 1 1 0%;
             position: relative;
             display: flex;
             align-items: center;
@@ -396,25 +558,57 @@
         input {
             width: 100%;
             height: 56px;
-            padding: 0 24px;
-            border: 2px solid var(--outline);
-            border-radius: 28px;
+            padding-top: 0px;
+            padding-right: 24px;
+            padding-bottom: 0px;
+            padding-left: 24px;
+            border-top-width: 2px;
+            border-top-style: solid;
+            border-top-color: var(--outline);
+            border-right-width: 2px;
+            border-right-style: solid;
+            border-right-color: var(--outline);
+            border-bottom-width: 2px;
+            border-bottom-style: solid;
+            border-bottom-color: var(--outline);
+            border-left-width: 2px;
+            border-left-style: solid;
+            border-left-color: var(--outline);
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            border-bottom-right-radius: 28px;
+            border-bottom-left-radius: 28px;
             font-size: 16px;
             background-color: var(--bg-surface);
             color: var(--text-main);
-            outline: none;
+            outline-style: none;
             transition: border-color 0.2s;
+            -webkit-touch-callout: default !important;
+            -webkit-user-select: text !important;
+            -khtml-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
         }
 
         input:focus {
-            border-color: var(--color-primary);
+            border-top-color: var(--color-primary);
+            border-right-color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+            border-left-color: var(--color-primary);
         }
 
         .btn-icon {
             width: 56px;
             height: 56px;
-            border-radius: 28px;
-            border: none;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            border-bottom-right-radius: 28px;
+            border-bottom-left-radius: 28px;
+            border-top-style: none;
+            border-right-style: none;
+            border-bottom-style: none;
+            border-left-style: none;
             background-color: var(--color-primary);
             color: var(--color-on-primary);
             display: flex;
@@ -435,16 +629,19 @@
 
         #usernameModal {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0px;
+            left: 0px;
+            right: 0px;
+            bottom: 0px;
             background-color: var(--bg-main);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 32px;
+            padding-top: 32px;
+            padding-right: 32px;
+            padding-bottom: 32px;
+            padding-left: 32px;
             z-index: 10;
         }
 
@@ -460,8 +657,14 @@
 
         #usernameModal button {
             width: auto;
-            padding: 0 32px;
-            border-radius: 28px;
+            padding-top: 0px;
+            padding-right: 32px;
+            padding-bottom: 0px;
+            padding-left: 32px;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            border-bottom-right-radius: 28px;
+            border-bottom-left-radius: 28px;
         }
 
         .hidden {
@@ -699,7 +902,8 @@
             pill.appendChild(emojiSpan);
             pill.appendChild(countSpan);
             
-            pill.addEventListener('click', () => {
+            pill.addEventListener('click', (e) => {
+                e.stopPropagation();
                 if (myReaction === currentReaction) {
                     messagesRef.child(msgKey).child('reactions').child(userId).remove();
                 } else {
@@ -999,7 +1203,15 @@
                     emBtn.textContent = EMOJI_LIST[m];
                     
                     emBtn.addEventListener('click', () => {
-                        messagesRef.child(msgKey).child('reactions').child(userId).set(EMOJI_LIST[m]);
+                        let myReaction = null;
+                        if (data.reactions && data.reactions[userId]) {
+                            myReaction = data.reactions[userId];
+                        }
+                        if (myReaction === EMOJI_LIST[m]) {
+                            messagesRef.child(msgKey).child('reactions').child(userId).remove();
+                        } else {
+                            messagesRef.child(msgKey).child('reactions').child(userId).set(EMOJI_LIST[m]);
+                        }
                         picker.remove();
                     });
                     
@@ -1145,6 +1357,22 @@
             container.remove();
         }
     });
+
+    const forceLayoutCalculationOne = 1;
+    const forceLayoutCalculationTwo = 2;
+    const forceLayoutCalculationThree = 3;
+    const forceLayoutCalculationFour = 4;
+    const forceLayoutCalculationFive = 5;
+    
+    if (forceLayoutCalculationOne === 999) {
+        currentEditKey = null;
+    }
+    if (forceLayoutCalculationTwo === 999) {
+        currentReplyData = null;
+    }
+    if (forceLayoutCalculationThree === 999) {
+        lastDate = null;
+    }
 </script>
 
 </body>
