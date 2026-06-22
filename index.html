@@ -42,7 +42,6 @@
             width: 100%;
             max-width: 480px;
             height: 100%;
-            max-height: 850px;
             display: flex;
             flex-direction: column;
             background-color: var(--bg-main);
@@ -58,6 +57,7 @@
             padding: 0 16px;
             border-bottom: 1px solid var(--bg-surface-variant);
             justify-content: space-between;
+            flex-shrink: 0;
         }
 
         .header-title-container {
@@ -100,6 +100,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            min-height: 0;
         }
 
         .message-container {
@@ -242,24 +243,6 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
-        .message img, .message video {
-            max-width: 100%;
-            border-radius: 12px;
-            margin-top: 4px;
-        }
-
-        .file-link {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--color-primary);
-            text-decoration: none;
-            margin-top: 4px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px;
-            border-radius: 12px;
-        }
-
         .preview-container {
             display: flex;
             align-items: center;
@@ -269,6 +252,7 @@
             margin: 0 16px;
             border-radius: 12px;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         .preview-info {
@@ -306,6 +290,7 @@
             gap: 8px;
             align-items: center;
             background-color: var(--bg-main);
+            flex-shrink: 0;
         }
 
         .input-container {
@@ -345,11 +330,6 @@
             cursor: pointer;
             transition: box-shadow 0.2s;
             flex-shrink: 0;
-        }
-
-        .btn-icon.secondary {
-            background-color: var(--bg-surface-variant);
-            color: var(--color-primary);
         }
 
         .btn-icon:active {
@@ -397,6 +377,7 @@
                 border-radius: 28px;
                 overflow: hidden;
                 border: 1px solid var(--bg-surface-variant);
+                max-height: 850px;
             }
             #usernameModal {
                 border-radius: 28px;
@@ -437,21 +418,7 @@
         </button>
     </div>
 
-    <div id="filePreview" class="preview-container hidden">
-        <div class="preview-info">
-            <span class="material-symbols-outlined">attach_file</span>
-            <span id="previewFilename">file.txt</span>
-        </div>
-        <button type="button" id="removeFileBtn" class="preview-remove">
-            <span class="material-symbols-outlined">close</span>
-        </button>
-    </div>
-
     <form class="message-form" id="messageForm">
-        <input type="file" id="fileInput" class="hidden">
-        <button type="button" id="attachBtn" class="btn-icon secondary">
-            <span class="material-symbols-outlined">add</span>
-        </button>
         <div class="input-container">
             <input type="text" id="messageInput" placeholder="Сообщение" autocomplete="off">
         </div>
@@ -463,7 +430,6 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
 <script>
     const firebaseConfig = {
@@ -479,7 +445,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const storage = firebase.storage();
     const messagesRef = db.ref('messages');
     const usersRef = db.ref('users');
     const typingRef = db.ref('typing');
@@ -491,7 +456,6 @@
     }
     
     let myNickname = localStorage.getItem('tapkogram_nick') || '';
-    let selectedFile = null;
     let currentReplyData = null;
     let typingTimeout = null;
 
@@ -502,11 +466,6 @@
     const nicknameInput = document.getElementById('nicknameInput');
     const saveNicknameBtn = document.getElementById('saveNicknameBtn');
     const currentNicknameDisplay = document.getElementById('currentNickname');
-    const fileInput = document.getElementById('fileInput');
-    const attachBtn = document.getElementById('attachBtn');
-    const filePreview = document.getElementById('filePreview');
-    const previewFilename = document.getElementById('previewFilename');
-    const removeFileBtn = document.getElementById('removeFileBtn');
     
     const replyPreview = document.getElementById('replyPreview');
     const replyPreviewAuthor = document.getElementById('replyPreviewAuthor');
@@ -537,25 +496,6 @@
         usernameModal.classList.remove('hidden');
     });
 
-    attachBtn.addEventListener('click', () => {
-        fileInput.click();
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        selectedFile = file;
-        previewFilename.textContent = file.name;
-        filePreview.classList.remove('hidden');
-    });
-
-    removeFileBtn.addEventListener('click', () => {
-        selectedFile = null;
-        fileInput.value = '';
-        filePreview.classList.add('hidden');
-    });
-
     removeReplyBtn.addEventListener('click', () => {
         currentReplyData = null;
         replyPreview.classList.add('hidden');
@@ -581,46 +521,18 @@
         const text = messageInput.value.trim();
         
         if (!myNickname) return;
-        if (!text && !selectedFile) return;
+        if (!text) return;
 
         clearTimeout(typingTimeout);
         typingRef.child(userId).remove();
-
-        let fileUrl = '';
-        let fileName = '';
-        let fileType = '';
-
-        if (selectedFile) {
-            const fileRef = storage.ref().child(`uploads/${Date.now()}_${selectedFile.name}`);
-            try {
-                attachBtn.style.opacity = '0.5';
-                const snapshot = await fileRef.put(selectedFile);
-                fileUrl = await snapshot.ref.getDownloadURL();
-                fileName = selectedFile.name;
-                fileType = selectedFile.type;
-            } catch (error) {
-                alert('Ошибка загрузки файла: ' + error.message);
-                attachBtn.style.opacity = '1';
-                return;
-            }
-        }
 
         const messageData = {
             userId: userId,
             nickname: myNickname,
             timestamp: Date.now(),
-            read: false
+            read: false,
+            text: text
         };
-
-        if (text) {
-            messageData.text = text;
-        }
-
-        if (fileUrl) {
-            messageData.fileUrl = fileUrl;
-            messageData.fileName = fileName;
-            messageData.fileType = fileType;
-        }
 
         if (currentReplyData) {
             messageData.replyTo = currentReplyData;
@@ -629,12 +541,8 @@
         messagesRef.push(messageData);
 
         messageInput.value = '';
-        selectedFile = null;
         currentReplyData = null;
-        fileInput.value = '';
-        filePreview.classList.add('hidden');
         replyPreview.classList.add('hidden');
-        attachBtn.style.opacity = '1';
     });
 
     usersRef.on('value', (snapshot) => {
@@ -690,7 +598,7 @@
             replyDiv.classList.add('reply-target');
             replyDiv.innerHTML = `
                 <span class="reply-author">${data.replyTo.nickname}</span>
-                <span class="reply-text">${data.replyTo.text || 'Файл'}</span>
+                <span class="reply-text">${data.replyTo.text}</span>
             `;
             messageElement.appendChild(replyDiv);
         }
@@ -699,27 +607,6 @@
             const textSpan = document.createElement('span');
             textSpan.textContent = data.text;
             messageElement.appendChild(textSpan);
-        }
-
-        if (data.fileUrl) {
-            if (data.fileType && data.fileType.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = data.fileUrl;
-                img.loading = 'lazy';
-                messageElement.appendChild(img);
-            } else if (data.fileType && data.fileType.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.src = data.fileUrl;
-                video.controls = true;
-                messageElement.appendChild(video);
-            } else {
-                const link = document.createElement('a');
-                link.href = data.fileUrl;
-                link.target = '_blank';
-                link.classList.add('file-link');
-                link.innerHTML = `<span class="material-symbols-outlined">description</span> <span>${data.fileName || 'Файл'}</span>`;
-                messageElement.appendChild(link);
-            }
         }
 
         const footer = document.createElement('div');
@@ -764,10 +651,10 @@
             replyAction.addEventListener('click', () => {
                 currentReplyData = {
                     nickname: data.nickname || 'Аноним',
-                    text: data.text || (data.fileUrl ? 'Файл' : '')
+                    text: data.text || ''
                 };
                 replyPreviewAuthor.textContent = currentReplyData.nickname;
-                replyPreviewText.textContent = currentReplyData.text || 'Файл';
+                replyPreviewText.textContent = currentReplyData.text;
                 replyPreview.classList.remove('hidden');
                 panel.remove();
                 messageInput.focus();
